@@ -1,0 +1,13 @@
+{
+    "name": "xsens_dot_server",
+    "version": "1.0.0",
+    "description": "Xsens DOT Server",
+    "dependencies": {
+        "@abandonware/noble": "^1.9.2-8",
+        "express": "^4.17.1",
+        "ip": "^1.1.5",
+        "noble-mac": "https://github.com/Timeular/noble-mac.git",
+        "quaternion": "^1.1.0",
+        "socket.io": "^2.3.0"
+    }
+}

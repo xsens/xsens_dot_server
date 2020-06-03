@@ -1,0 +1,58 @@
+@font-face 
+{
+    font-family: 'Montserrat';
+    font-style: normal;
+    font-weight: 400;
+    src: local('Montserrat Regular'), local('Montserrat-Regular'),
+    url('/montserrat-v14-latin-regular.woff2') format('woff2'), /* Chrome 26+, Opera 23+, Firefox 39+ */
+    url('/montserrat-v14-latin-regular.woff') format('woff'); /* Chrome 6+, Firefox 3.6+, IE 9+, Safari 5.1+ */
+}
+
+body 
+{
+    font: 14px 'Montserrat';
+}
+
+body, html
+{
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    margin: 10;
+    height: 100%;
+    overflow: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: none;
+    touch-action: none;
+}
+.actionButton 
+{
+    width: 140px;
+    height: 36px;
+    outline: none;
+    border: 2px solid #43425D;
+    border-radius: 4px;
+    opacity: 1;
+    text-align: center;
+    font: 12px 'Montserrat';
+    letter-spacing: 0;
+    color: #4D4F5C;
+    opacity: 1;
+}
+.actionButton:active 
+{
+    background: #43425D 0% 0% no-repeat padding-box;
+    border-radius: 4px;
+    opacity: 1;
+    color: #ffffff;
+}
+
+.actionButton:disabled
+{
+    border: 2px solid #43425D;
+    opacity: 0.2;
+}
+
