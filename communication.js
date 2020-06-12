@@ -39,123 +39,233 @@ var eventHandlerFunctions = {};
 setEventHandlerFunctions();
 
 var scanControlButton,
-    connectionControlButton,
-    measurementControlButton;
+    measurementControlButton,
+    stopMeasuringButton,
+    measurementPayloadList;
 
-var selectedDiscoveredSensors  = [],
-    discoveredSensors = [],
-    connectedSensors = [],
-    measuringSensors = [];
+var discoveredSensors = [],
+    connectedSensors  = [],
+    measuringSensors  = [];
+
+var scanningTimeoutId;
+
+var measuringPayloadId = -1;
+
+var lastSensorsDataTimeMap = [];
+var lastSensorDataTime     = 0;
+
+const ID_LOGO_IMAGE                = "logoImage";
+const ID_CONNECTION_CONTROL_BUTTON = "connectionControlButton";
+const ID_SENSOR_DATA_INDICATOR     = "sensorDataIndicator";
+
+const TEXT_CONNECT    = "Connect";
+const TEXT_DISCONNECT = "Disconnect";
 
 window.onload = function( eventName, parameters  )
 {
     scanControlButton = document.getElementById("scanControlButton");
 
-    connectionControlButton = document.getElementById("connectionControlButton");
-    connectionControlButton.disabled = true;
-
     measurementControlButton = document.getElementById("measurementControlButton");
     measurementControlButton.disabled = true;
+    measurementControlButton.hidden = true;
+
+    stopMeasuringButton = document.getElementById("stopMeasuringButton");
+    stopMeasuringButton.hidden = true;
+
+    measurementPayloadList = document.getElementById("measurementPayloadList");
+
+    getConnectedSensors();
 
     getFileList();
+}
+
+window.onunload = function( eventName, parameters  )
+{
+    stopScanning();
 }
 
 function setEventHandlerFunctions()
 {
     eventHandlerFunctions[ 'sensorDiscovered' ] = function( eventName, parameters  )
     {
-        selectedDiscoveredSensors.push( parameters.address );
-        addSensorToList( discoveredSensors, "DiscoveredSensors", parameters.address, discoveredSensorCheckboxClicked );
+        addSensorToList( discoveredSensors, "DiscoveredSensors", parameters.address );
     };
 
     eventHandlerFunctions[ 'scanningStarted' ] = function( eventName, parameters  )
     {
-        scanControlButton.innerHTML = 'Stop scanning';
+        scanControlButton.innerHTML = 'Stop Scanning';
         scanControlButton.disabled = false;
     };
 
     eventHandlerFunctions[  'scanningStopped' ] = function( eventName, parameters  )
     {
-        scanControlButton.innerHTML = 'Start scanning';
+        scanControlButton.innerHTML = 'Start Scanning';
         scanControlButton.disabled = false;
-        disableCheckboxes( false );
-        connectionControlButton.disabled = (selectedDiscoveredSensors.length == 0);                
     };
 
     eventHandlerFunctions[  'sensorConnected' ] = function( eventName, parameters  )
     {
-        removeSensorFromList( discoveredSensors, "DiscoveredSensors", parameters.address );
-        addSensorToList( connectedSensors, "ConnectedSensors", parameters.address );
+        console.log("sensorConnected " + parameters.address);
+
+        connectedSensors.push( parameters.address );
+
+        var logoImage = document.getElementById(ID_LOGO_IMAGE + parameters.address);
+        if (logoImage != null)
+        {
+            logoImage.src = "Xsens_DOT_connected.png";
+        }
+
+        var element = document.getElementById(ID_CONNECTION_CONTROL_BUTTON + parameters.address);
+        if (element != null)
+        {
+            element.innerHTML = TEXT_DISCONNECT;
+            element.disabled = false;
+            element.style.color = "#FFFFFF";
+            element.style.background = "#EA6852";
+            element.onmouseover = onButtonMouseOver;
+            element.onmouseout = onButtonMouseOver;
+        }
+
+        enableOrDisableMeasurementControlButton();
+
     };
 
     eventHandlerFunctions[  'sensorDisconnected' ] = function( eventName, parameters  )
     {
-        removeSensorFromList( connectedSensors, "ConnectedSensors", parameters.address );
-        removeSensorFromList( measuringSensors, "MeasuringSensors", parameters.address );
+        console.log("sensorDisconnected " + parameters.address);
 
-        addSensorToList( discoveredSensors, "DiscoveredSensors", parameters.address, discoveredSensorCheckboxClicked );
-    };
+        removeSensor( measuringSensors, parameters.address );
+        
+        var logoImage = document.getElementById(ID_LOGO_IMAGE + parameters.address);
+        if (logoImage != null)
+        {
+            logoImage.src = "Xsens_DOT_disconnected.png";
+        }
 
-    eventHandlerFunctions[  'allSensorsDisconnected' ] = function( eventName, parameters  )
-    {
-        connectionControlButton.disabled = (selectedDiscoveredSensors.length == 0);
-        connectionControlButton.innerHTML = "Connect sensors"
-        scanControlButton.disabled = false;
-        disableCheckboxes( false );
-    };
+        var element = document.getElementById(ID_CONNECTION_CONTROL_BUTTON + parameters.address);
+        if (element != null)
+        {
+            element.innerHTML = TEXT_CONNECT;
+            element.disabled = false;
+            element.style.color = "#EA6852";
+            element.style.background = "#FFFFFF";
+            element.onmouseover = onButtonMouseOver;
+            element.onmouseout = onButtonMouseOut;
+        }
+        
 
-    eventHandlerFunctions[  'allSensorsConnected' ] = function( eventName, parameters  )
-    {
-        connectionControlButton.disabled = (connectedSensors.length == 0);
-        connectionControlButton.innerHTML = "Disconnect sensors"
-        measurementControlButton.disabled = ( connectedSensors.length == 0 );
-        disableCheckboxes( false );
+        var idx = connectedSensors.indexOf( parameters.address );
+        if( idx == -1 ) return;
+    
+        connectedSensors.splice(idx, 1);
+
+        console.log("sensorDisconnected " + connectedSensors.length);
+
+        enableOrDisableMeasurementControlButton();
 
     };
 
     eventHandlerFunctions[  'sensorEnabled' ] = function( eventName, parameters  )
     {
-        addSensorToList( measuringSensors, "MeasuringSensors", parameters.address );
-        removeSensorFromList( connectedSensors, "ConnectedSensors", parameters.address );
-        recordingControlButton.disabled = false;
+        measuringSensors.push( parameters.address );
+
+        console.log("sensorEnabled " + parameters.address + ", " + measuringSensors.length);
+
+        measurementControlButton.disabled = (measuringSensors.length == 0);
+        measurementControlButton.hidden = true;
+
+        stopMeasuringButton.innerHTML = "Stop Logging";
+        stopMeasuringButton.disabled = false;
+        stopMeasuringButton.hidden = false;
+        
+        if (measuringSensors.length == 1)
+        {
+            sendGuiEvent( 'startRecording', {filename:getUniqueFilename()} );
+        }
+
+        enableOrDisableConnectButtons(true);
     };
 
     eventHandlerFunctions[  'allSensorsEnabled' ] = function( eventName, parameters  )
     {
-        measurementControlButton.disabled = (measuringSensors.length == 0);
-        measurementControlButton.innerHTML = "Disable sensors"
     };
 
     eventHandlerFunctions[  'sensorDisabled' ] = function( eventName, parameters  )
     {
-        addSensorToList( connectedSensors, "ConnectedSensors", parameters.address );
-        removeSensorFromList( measuringSensors, "MeasuringSensors", parameters.address );
+        removeSensor( measuringSensors, parameters.address );
+
+        console.log("sensorDisabled "+ parameters.address + ", " + measuringSensors.length);
+
+        var  allSensorsDisabled = measuringSensors.length == 0;
+
+        if (connectedSensors.length > 0)
+        {
+            measurementControlButton.disabled = !allSensorsDisabled;
+            measurementControlButton.hidden = !allSensorsDisabled;
+        }
+
+        if (allSensorsDisabled)
+        {
+            scanControlButton.disabled = false;
+            stopMeasuringButton.innerHTML = "Stop logging";
+            measurementPayloadList.style.display = '';
+        }
+
+        stopMeasuringButton.hidden = allSensorsDisabled;
+
+        enableOrDisableConnectButtons(false);
+        getFileList();
     };
 
     eventHandlerFunctions[  'allSensorsDisabled' ] = function( eventName, parameters  )
     {
-        measurementControlButton.disabled = ( connectedSensors.length == 0 );
-        measurementControlButton.innerHTML = "Enable sensors";
-        connectionControlButton.disabled = ( connectedSensors.length == 0 );
-        recordingControlButton.disabled = true;
-    };
-
-    eventHandlerFunctions[ 'recordingStarted' ] = function( eventName, parameters  )
-    {
-        recordingControlButton.innerHTML = "Stop recording";
-        recordingControlButton.disabled = false;
     };
 
     eventHandlerFunctions[ 'recordingStopped' ] = function( eventName, parameters  )
     {
-        recordingControlButton.innerHTML = "Start recording";
-        recordingControlButton.disabled = ( measuringSensors.length == 0);
-        getFileList();
     };
 
     eventHandlerFunctions[  'sensorOrientation' ] = function( eventName, parameters  )
     {
-    }
+        const address = parameters.address;
+        var now = Date.parse(new Date());
+
+        lastSensorsDataTimeMap[address] = now;
+
+        const diff = now - lastSensorDataTime;
+
+        if (lastSensorDataTime == 0 || diff >= 2000)
+        {
+            lastSensorDataTime = now;
+
+            measuringSensors.forEach( function (address)
+            {
+                var element = document.getElementById(ID_SENSOR_DATA_INDICATOR + address);
+                if (element != null)
+                {
+                    var lastDataTime = lastSensorsDataTimeMap[address];
+                
+                    if (lastDataTime != null && lastDataTime != undefined)
+                    {
+                        const diff = now - lastDataTime;
+
+                        if (diff >= 2000)
+                        {
+                            element.style.color = "#6A6A6A";
+                        }
+                        else
+                        {
+                            element.style.color = "#EA6852";
+                        }
+                    }
+                    else
+                    {
+                        element.style.color = "#6A6A6A";
+                    }
+                }
+            });
+        }
+    };
 
 }
 
@@ -192,9 +302,11 @@ function processFileList( files )
         link = document.createElement("a");
         link.setAttribute( "href", "/"+file );
         link.setAttribute( "download", file );
+        link.style.color = "#FFFFFF";
+        link.style.marginLeft = "8px";
         link.innerHTML = file;
         newLine = document.createElement( "br" );
-        
+
         recordings.appendChild(label);
         label.appendChild(checkbox);
         label.appendChild(link);
@@ -202,34 +314,175 @@ function processFileList( files )
     });
 }
 
+function enableOrDisableConnectButtons(disabled)
+{
+    discoveredSensors.forEach( function (address)
+    {
+        var element = document.getElementById(ID_CONNECTION_CONTROL_BUTTON + address);
+        if (element != null)
+        {
+            element.disabled = disabled;
+        }
+    });
+}
+
+function enableOrDisableMeasurementControlButton()
+{
+    measurementControlButton.disabled = connectedSensors.length == 0;
+    measurementControlButton.hidden = connectedSensors.length == 0 || measuringSensors.length != 0;
+
+    if (measuringSensors.length == 0)
+        measurementPayloadList.style.display = '';
+
+    stopMeasuringButton.hidden = measuringSensors.length == 0;
+}
+
+function loadConnectedSensors( connectedSensors )
+{
+    console.log("loadConnectedSensors " + connectedSensors);
+
+    if (connectedSensors != null && connectedSensors != undefined) {
+        this.connectedSensors = connectedSensors;
+
+        this.connectedSensors.forEach( function (address)
+        {
+            addSensorToList( discoveredSensors, "DiscoveredSensors", address );
+
+            var logoImage = document.getElementById(ID_LOGO_IMAGE + address);
+            if (logoImage != null)
+            {
+                logoImage.src = "Xsens_DOT_connected.png";
+            }
+
+            var element = document.getElementById(ID_CONNECTION_CONTROL_BUTTON + address);
+            if (element != null)
+            {
+                element.innerHTML = TEXT_DISCONNECT;
+                element.disabled = false;
+                element.style.color = "#FFFFFF";
+                element.style.background = "#EA6852";
+                element.onmouseover = onButtonMouseOver;
+                element.onmouseout = onButtonMouseOver;
+            }
+    
+            enableOrDisableMeasurementControlButton();
+        });
+    }
+}
+
 function addSensorToList( sensorList, sensorListName, address, clickHandler )
 {
     sensorList.push( address );
 
+    var lineHeight = "38px";
+
     var sensorListElement = document.getElementById(sensorListName);
 
-    var label = document.createElement("label");
+    var label = document.createElement("div");
     label.setAttribute( "id", sensorListName+address );
-
-    var sensorAddress = document.createTextNode(address);
+    label.style.width = "500px";
+    label.style.display = "flex";
 
     sensorListElement.appendChild(label);
 
-    if( clickHandler )
-    {
-        var checkbox = document.createElement("input");
-        checkbox.setAttribute( "type", "checkbox" );
-        checkbox.setAttribute( "name",  address );
-        checkbox.setAttribute( "class", sensorListName );
-        checkbox.onclick = clickHandler;
-        checkbox.checked = true;
-        checkbox.disabled = true;
-        label.appendChild(checkbox);
-    }
+    var logo = document.createElement("img");
+    logo.id = ID_LOGO_IMAGE + address;
+    logo.src = "Xsens_DOT_disconnected.png";
+    logo.style.width = "32px";
+    logo.style.height = lineHeight;
+    label.appendChild(logo);
+
+    var sensorDataIndicatorDiv = document.createElement("div");
+    sensorDataIndicatorDiv.style.width = "32px";
+    sensorDataIndicatorDiv.style.height = lineHeight;
+    sensorDataIndicatorDiv.style.display = "box";
+    sensorDataIndicatorDiv.style.boxPack = "center";
+    sensorDataIndicatorDiv.style.background = "#00000000";
+    sensorDataIndicatorDiv.style.boxOrient = "vertical";
+    sensorDataIndicatorDiv.textAlign = "center";
+
+    var sensorDataIndicator = document.createElement("label");
+    sensorDataIndicator.id = ID_SENSOR_DATA_INDICATOR + address;
+    sensorDataIndicator.style.width = "16px";
+    sensorDataIndicator.style.height = "16px";
+    sensorDataIndicator.style.color = "#00000000";
+    sensorDataIndicator.innerHTML = "▶";
+    sensorDataIndicator.style.lineHeight = lineHeight;
+    sensorDataIndicator.style.background = "#00000000";
+    sensorDataIndicator.style.margin = "0px";
+
+    sensorDataIndicatorDiv.appendChild(sensorDataIndicator);
+    label.appendChild(sensorDataIndicatorDiv);
+
+    var sensorAddress = document.createElement('label');
+    sensorAddress.innerHTML = address;
+    sensorAddress.style.padding = "10px";
+    sensorAddress.style.color = "#FFFFFF";
+    sensorAddress.style.flex = "1";
+    sensorAddress.style.fontSize = "16px";
+    label.appendChild(sensorAddress);
+
+    var connectionControlButton = document.createElement("button");
+    connectionControlButton.id = ID_CONNECTION_CONTROL_BUTTON + address;
+    connectionControlButton.name = address;
+    connectionControlButton.innerHTML = TEXT_CONNECT;
+    initButtonStyle(connectionControlButton);
+
+    connectionControlButton.onclick = connectionControlButtonClicked;
+    connectionControlButton.onmouseover = onButtonMouseOver;
+    connectionControlButton.onmouseout = onButtonMouseOut;
+
+    label.appendChild(connectionControlButton);
 
     var newLine = document.createElement( "br" );
-    label.appendChild(sensorAddress);
     label.appendChild(newLine);
+}
+
+function initButtonStyle(connectionControlButton)
+{
+    connectionControlButton.style.marginLeft = "20px";
+    connectionControlButton.style.width = "140px";
+    connectionControlButton.style.height = "36px";
+    connectionControlButton.style.outline = "none";
+    connectionControlButton.style.border = "2px solid #43425D";
+    connectionControlButton.style.borderRadius = "4px";
+    connectionControlButton.style.opacity = "1";
+    connectionControlButton.style.textAlign = "center";
+    connectionControlButton.style.font = "12px 'Montserrat'";
+    connectionControlButton.style.letterSpacing = "0";
+    connectionControlButton.style.color = "#EA6852";
+    connectionControlButton.style.fontWeight = "bold";
+    connectionControlButton.style.background = "#FFFFFF";
+}
+
+function onButtonMouseOver()
+{
+    this.style.marginLeft = "20px";
+    this.style.width = "140px";
+    this.style.height = "36px";
+    this.style.outline = "none";
+    this.style.border = "2px solid #43425D";
+    this.style.borderRadius = "4px";
+    this.style.opacity = "1";
+    this.style.textAlign = "center";
+    this.style.font = "12px 'Montserrat'";
+    this.style.letterSpacing = "0";
+    this.style.color = "#FFFFFF";
+    this.style.fontWeight = "bold";
+    this.style.background = "#EA6852";
+}
+
+function onButtonMouseOut()
+{
+    initButtonStyle(this);
+}
+
+function removeSensor( sensorList, address )
+{
+    var idx = sensorList.indexOf( address );
+    if( idx == -1 ) return;
+
+    sensorList.splice(idx,1);
 }
 
 function removeSensorFromList( sensorList, sensorListName, address )
@@ -252,41 +505,41 @@ function sensorSelection( sensorList, name )
     }
     else
     {
-        sensorList.splice(idx,1);
+        sensorList.splice(idx, 1);
     }
-}
-
-function disableCheckboxes( disabled )
-{
-    var elements = document.getElementsByClassName( "DiscoveredSensors" );
-    for( var i=0; i<elements.length; i++ )
-    {
-        elements.item(i).disabled = disabled;
-    }
-}
-
-function discoveredSensorCheckboxClicked()
-{
-    sensorSelection( selectedDiscoveredSensors, this.name );
-    connectionControlButton.disabled = ( selectedDiscoveredSensors.length == 0 )
 }
 
 function scanControlButtonClicked()
 {
-    if( scanControlButton.innerHTML == 'Start scanning' )
+    if( scanControlButton.innerHTML == 'Start Scanning' )
     {
         sendGuiEvent( 'startScanning' );
         scanControlButton.innerHTML = 'Starting...';
         scanControlButton.disabled = true;
-        connectionControlButton.disabled = true;
 
         while( discoveredSensors.length != 0 )
         {
             removeSensorFromList( discoveredSensors, "DiscoveredSensors", discoveredSensors[0] );
         }
-        selectedDiscoveredSensors = [];
+
+        loadConnectedSensors(connectedSensors);
+
+        if (scanningTimeoutId > 0)
+            clearTimeout(scanningTimeoutId);
+
+        scanningTimeoutId = setTimeout(() => {
+            stopScanning();
+        }, 15000);
     }
-    if( scanControlButton.innerHTML == 'Stop scanning' )
+    else
+    {
+        stopScanning();
+    }
+}
+
+function stopScanning()
+{
+    if( scanControlButton.innerHTML == 'Stop Scanning' )
     {
         sendGuiEvent( 'stopScanning' );
         scanControlButton.innerHTML = 'Stopping...';
@@ -296,60 +549,78 @@ function scanControlButtonClicked()
 
 function connectionControlButtonClicked()
 {
-    if( connectionControlButton.innerHTML == 'Connect sensors' )
+    stopScanning();
+
+    if( this.innerHTML == TEXT_CONNECT )
     {
-        sendGuiEvent( 'connectSensors', {addresses:selectedDiscoveredSensors} );
-        connectionControlButton.innerHTML = "Stop connecting"
-        scanControlButton.disabled = true;
-        disableCheckboxes( true );
+        var sensor = [this.name];
+
+        sendGuiEvent( 'connectSensors', {addresses:sensor} );
+        this.innerHTML = "Stop connecting"
     }
-    else if( connectionControlButton.innerHTML == 'Stop connecting' )
+    else if( this.innerHTML == 'Stop connecting')
     {
-        sendGuiEvent( 'stopConnectingSensors' );
-        connectionControlButton.disabled = true;
-        scanControlButton.disabled = true;
+        var sensor = [this.name];
+        sendGuiEvent( 'stopConnectingSensors', {addresses:sensor} );
+        this.disabled = false;
+
+        this.innerHTML = TEXT_CONNECT;
     }
-    else
+    else if( this.innerHTML == TEXT_DISCONNECT )
     {
-        sendGuiEvent( 'disconnectSensors', {addresses:connectedSensors} );
-        connectionControlButton.disabled = true;
-        connectionControlButton.innerHTML = "Disconnecting..."
-        measurementControlButton.disabled = true;
-        scanControlButton.disabled = true;
+        var sensor = [this.name];
+        sendGuiEvent( 'disconnectSensors', {addresses:sensor} );
+        this.disabled = true;
+        this.innerHTML = "Disconnecting..."
     }
 }
 
-function measurementControlButtonClicked()
+function measurementControlButtonClicked(payloadId)
 {
-    if( measurementControlButton.innerHTML == 'Enable sensors')
+    console.log("payloadId " + payloadId);
+
+    stopScanning();
+
+    measuringPayloadId = payloadId;
+
+    if( measurementControlButton.innerHTML == 'Start Logging' )
     {
-        sendGuiEvent( 'startMeasuring', {addresses:connectedSensors} );
-        connectionControlButton.disabled  = true;
         measurementControlButton.disabled = true;
         scanControlButton.disabled = true;
-        measurementControlButton.innerHTML = "Enabling..."
-    }
-    else
-    {
-        sendGuiEvent( 'stopMeasuring', {addresses:measuringSensors} );
-        measurementControlButton.disabled = true;
-        measurementControlButton.innerHTML = "Disabling..."
+
+        measurementPayloadList.style.display = 'none';
+        measurementControlButton.hidden = true;
+
+        stopMeasuringButton.innerHTML = "Starting...";
+        stopMeasuringButton.hidden = false;
+
+        for (  i = 0; i < connectedSensors.length; i++ )
+        {
+            var sensor = [connectedSensors[i]];
+            sendGuiEvent( 'startMeasuring', {addresses:sensor, measuringPayloadId: measuringPayloadId} );
+        }
     }
 }
 
-function recordingControlButtonClick()
+function stopMeasuringButtonClicked()
 {
-    if( recordingControlButton.innerHTML == 'Start recording' )
+    sendGuiEvent( 'stopRecording' );
+
+    stopMeasuringButton.disabled = true;
+    stopMeasuringButton.innerHTML = "Stoping..."
+
+    for (  i = 0; i < measuringSensors.length; i++ )
     {
-        recordingControlButton.innerHTML = "Starting recording...";
-        recordingControlButton.disabled = true;
-        sendGuiEvent( 'startRecording', {filename:getUniqueFilename()} );
-    }
-    else
-    {
-        recordingControlButton.innerHTML = "Stopping recording...";
-        recordingControlButton.disabled = true;
-        sendGuiEvent( 'stopRecording' );
+        var address = measuringSensors[i];
+        var sensor = [address];
+        sendGuiEvent( 'stopMeasuring', {addresses:sensor, measuringPayloadId: measuringPayloadId} );
+
+        var element = document.getElementById(ID_SENSOR_DATA_INDICATOR + address);
+        if (element != null)
+        {
+            element.style.color = "#00000000";
+            element.style.background = "#00000000";
+        }
     }
 }
 
@@ -396,6 +667,14 @@ function sendGuiEvent( eventName, parameters )
 }
 
 // ---------------------------------------------------------------------------------------
+// -- Get connected sensors --
+// ---------------------------------------------------------------------------------------
+function getConnectedSensors()
+{
+    socket.emit( 'getConnectedSensors' );
+}
+
+// ---------------------------------------------------------------------------------------
 // -- Get file list --
 // ---------------------------------------------------------------------------------------
 function getFileList()
@@ -410,6 +689,18 @@ function deleteFiles( files )
 {
     socket.emit( 'deleteFiles', files );
 }
+
+// ---------------------------------------------------------------------------------------
+// -- Handle 'connectedSensors' --
+// ---------------------------------------------------------------------------------------
+socket.on( 'connectedSensors', function( connectedSensors )
+{
+    if( typeof loadConnectedSensors === 'undefined' )
+    {
+        console.log( "WARNING 'loadConnectedSensors()' function not defined on page!" )
+    }
+    else loadConnectedSensors( connectedSensors );
+});
 
 // ---------------------------------------------------------------------------------------
 // -- Handle 'fileList' --

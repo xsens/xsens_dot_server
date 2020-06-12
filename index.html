@@ -33,45 +33,65 @@
 <!doctype html>
 <html>
 	<head>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
         <title>Xsens DOT with Node.js</title>
         <link rel="stylesheet" type="text/css" href="styleSheet.css" media="all">
         <script src="socket.io/socket.io.js"></script>
         <script src="communication.js"></script>
 
         <style>th:not(:last-child), td:not(:last-child) { border-right: 2px solid #000; }</style>
-
-        <script>
-
-        </script>
-
 	</head>
 
-    <body>
+  <body>
 
-        <img src="Xsens_DOT_Logo.png" width="500px">
-        <hr>
-        <table>
-            <tr>
-                <th><button id="scanControlButton" class="actionButton" onclick="scanControlButtonClicked()">Start scanning</button></th>
-                <th><button id="connectionControlButton"  class="actionButton" onclick="connectionControlButtonClicked()">Connect sensors</button></th> 
-                <th><button id="measurementControlButton" class="actionButton" onclick="measurementControlButtonClicked()">Enable sensors</button></th>
-            </tr>
-            <tr valign="top" align="center">
-                <td><p id="DiscoveredSensors" style="font-size:14px"><p></td>
-                <td><p id="ConnectedSensors"  style="font-size:14px"><p></td>
-                <td><p id="MeasuringSensors"  style="font-size:14px"><p></td>
-            <tr>
-          </table>
-        <hr>
+    <img src="Xsens_DOT_Logo.png" width="500px" class="centerImg" style="padding-top: 2em;" />
+    <hr>
 
-        <button id='recordingControlButton' disabled class="actionButton" onClick="recordingControlButtonClick()">Start recording</button>
-        <hr>
- 		
- 		Recordings:<br>
+    <div width="500px" align="center">
+      <div class="wrapper" style="padding-top: 12px; padding-bottom: 12px;">
+        <div style="position: relative;">
+          <button id="scanControlButton" class="actionButton" style="position: absolute; left: 0px; margin-top: -18px;" onclick="scanControlButtonClicked()">Start Scanning</button>
+        </div>
 
- 		<p id="recordings" style="font-size:12px"><p>
+        <div style="position: relative;">
+          <div style="position: absolute; left: 0px; right: 0px; margin-top: -18px;">
+            <div class="dropdown">
+              <button id="measurementControlButton" class="dropbtn actionButton" hidden>Start Logging</button>
+              <div id="measurementPayloadList" class="dropdown-content">
+                <a id= "16" onclick="measurementControlButtonClicked(this.id)">Complete (Euler)</a>
+                <a id= "2" onclick="measurementControlButtonClicked(this.id)">Extended (Quaternion)</a>
+                <a id= "20" onclick="measurementControlButtonClicked(this.id)">Rate quantities (with mag)</a>
+              </div>
+            </div>
+          </div>
+        </div>
 
-		<button id="deleteFilesButton" class="actionButton" onClick="deleteFilesButtonClick()">Delete</button>
+        <div style="position: relative;">
+          <button id="stopMeasuringButton" class="actionButton" style="position: absolute; right: 0px; margin-top: -18px; margin-right: -4px;" onclick="stopMeasuringButtonClicked()" hidden>Stop Measuring</button>
+        </div>
+
+      </div>
+    </div>
+
+    <div width="500px" valign="top" align="center">
+      <p id="DiscoveredSensors" style="font-size:14px;"><p>
+    </div>
+    <hr>
+
+    <div width="500px" class="centerImg roundBackground">
+      <div style="margin-bottom: 5em;">
+        <div style="display: flex; position: relative;">
+
+          <div style="flex: 1;">
+ 	    	    <h4 style="color: white; margin-top: 2px;">Logging Files:</h4>
+ 	    	    <p id="recordings" valign="center" style="font-size:12px;"><p>
+          </div>
+
+	    	  <button id="deleteFilesButton" style="position: absolute; right: 0px; bottom: 0px; margin-bottom: 1em;" class="actionButton" onClick="deleteFilesButtonClick()">Delete</button>
+        </div>
+      </div>
+    </div>
 
 	</body>
 </html>

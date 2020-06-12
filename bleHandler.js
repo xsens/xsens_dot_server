@@ -42,13 +42,14 @@ var Quaternion = require('quaternion');
 // =======================================================================================
 // Constants
 // =======================================================================================
-const SENSOR_NAME          = "Xsens DOT",
-      SENSOR_ENABLE        = 0x01,
-      SENSOR_DISABLE       = 0x00,
-      BLE_UUID_CONTROL     = "15172001494711e98646d663bd873d93",
-      BLE_UUID_MEASUREMENT = "15172004494711e98646d663bd873d93",
-      ROLLOVER             = 4294967295,
-      CLOCK_DELTA          = 0.0002;
+const SENSOR_NAME                          = "Xsens DOT",
+      SENSOR_ENABLE                        = 0x01,
+      SENSOR_DISABLE                       = 0x00,
+      BLE_UUID_CONTROL                     = "15172001494711e98646d663bd873d93",
+      BLE_UUID_MEASUREMENT_MEDIATE_PAYLOAD = "15172003494711e98646d663bd873d93",
+      ROLLOVER                             = 4294967295,
+      CLOCK_DELTA                          = 0.0002,
+      TWO_POW_TWELVE                       = Math.pow(2, 12);
 
 // =======================================================================================
 // Class definition
@@ -161,9 +162,23 @@ class BleHandler
 
                 sensor.on( 'disconnect', function()
                 {
-                    bleHandler.sendBleEvent( 'bleSensorDisconnected', { sensor:sensor } );
+                    var addresses = [sensor.address];
+                    bleHandler.sendBleEvent( 'bleSensorDisconnected', { sensor:sensor, addresses:addresses } );
+
+                    var idx = globalConnectedSensors.indexOf( sensor );
+                    if( idx != -1 )
+                    {
+                        globalConnectedSensors.splice( idx, 1 );
+
+                        console.log('Remove global connected sensor ' + sensor.address);
+                    }
                 });
-                bleHandler.sendBleEvent( 'bleSensorConnected', { sensor:sensor } );
+
+                var addresses = [sensor.address];
+                bleHandler.sendBleEvent( 'bleSensorConnected', { sensor:sensor, addresses:addresses } );
+
+                globalConnectedSensors.push( sensor );
+                console.log('Add global connected sensor ' + sensor.address);
             });
         });
     }
@@ -188,13 +203,13 @@ class BleHandler
     // -----------------------------------------------------------------------------------
     // -- Enable sensor --
     // -----------------------------------------------------------------------------------
-    enableSensor( sensor )
+    enableSensor( sensor, measuringPayloadId )
     {
         var bleHandler = this,
             controlCharacteristic     = sensor.characteristics[BLE_UUID_CONTROL],
-            measurementCharacteristic = sensor.characteristics[BLE_UUID_MEASUREMENT];
+            measurementCharacteristic = sensor.characteristics[BLE_UUID_MEASUREMENT_MEDIATE_PAYLOAD];
 
-        var buffer = Buffer.from( [0x01, SENSOR_ENABLE, 0x05] );
+        var buffer = Buffer.from( [0x01, SENSOR_ENABLE, measuringPayloadId] );
 
         if( measurementCharacteristic.listenerCount('data') == 0 )
         {
@@ -203,7 +218,7 @@ class BleHandler
                 bleHandler.sendBleEvent
                 ( 
                     "bleSensorData", 
-                    convertSensorData( sensor, data )
+                    convertSensorData( sensor, data, measuringPayloadId )
                 );
             });
         }
@@ -224,7 +239,9 @@ class BleHandler
                     return;
                 }
 
-                bleHandler.sendBleEvent(  'bleSensorEnabled', { sensor:sensor } );
+                var addresses = [sensor.address];
+
+                bleHandler.sendBleEvent(  'bleSensorEnabled', { sensor:sensor, addresses:addresses } );
             });
         });
     }
@@ -232,11 +249,11 @@ class BleHandler
     // -----------------------------------------------------------------------------------
     // -- Disable sensor --
     // -----------------------------------------------------------------------------------
-    disableSensor( sensor )
+    disableSensor( sensor, measuringPayloadId )
     {
         var bleHandler = this,
             controlCharacteristic     = sensor.characteristics[BLE_UUID_CONTROL],
-            measurementCharacteristic = sensor.characteristics[BLE_UUID_MEASUREMENT];
+            measurementCharacteristic = sensor.characteristics[BLE_UUID_MEASUREMENT_MEDIATE_PAYLOAD];
 
         measurementCharacteristic.removeAllListeners();
 
@@ -250,7 +267,9 @@ class BleHandler
                 return;
             }
 
-            bleHandler.sendBleEvent( 'bleSensorDisabled', { sensor:sensor } );
+            var addresses = [sensor.address];
+
+            bleHandler.sendBleEvent( 'bleSensorDisabled', { sensor:sensor, addresses:addresses } );
         });
     }
 
@@ -277,25 +296,97 @@ class BleHandler
 // ---------------------------------------------------------------------------------------
 // -- Convert sensor data --
 // ---------------------------------------------------------------------------------------
-function convertSensorData( sensor, data )
+function convertSensorData( sensor, data, measuringPayloadId )
 {
     const hrTime = process.hrtime();
     var systemtime = hrTime[0] * 1000000 + hrTime[1] / 1000;
 
     setSynchronizedTimestamp( sensor, data, systemtime );
 
-    var orientation = getOrientation(data);
-    var result =     
+    switch (measuringPayloadId)
     {
-        timestamp: sensor.systemTimestamp,
-        address:   sensor.address,
-        q_w:       orientation.w,
-        q_x:       orientation.x,
-        q_y:       orientation.y,
-        q_z:       orientation.z,
-    };
+        case MEASURING_PAYLOAD_TYPE_COMPLETE_EULER:
+            var euler = getEuler(data, 4);
+            var freeAcceleration = getFreeAcceleration(data, 16);
 
-    return result;
+            var result =
+            {
+                timestamp: sensor.systemTimestamp,
+                address:   sensor.address,
+                euler_x:   euler.x,
+                euler_y:   euler.y,
+                euler_z:   euler.z,
+                freeAcc_x: freeAcceleration.x,
+                freeAcc_y: freeAcceleration.y,
+                freeAcc_z: freeAcceleration.z
+            };
+
+            // console.log("Payload id 16 bleSensorData " + result.timestamp + ", " + result.address 
+            //     + ", euler_x " + result.euler_x + ", euler_y " + result.euler_y + ", euler_z " + result.euler_z
+            //     + ", freeAcc_x " + result.freeAcc_x + ", freeAcc_y " + result.freeAcc_y + ", freeAcc_z " + result.freeAcc_z);
+
+            return result;
+            
+        case MEASURING_PAYLOAD_TYPE_EXTENDED_QUATERNION:
+            var quaternion = getOrientationQuaternion(data, 4);
+            var freeAcceleration = getFreeAcceleration(data, 20);
+            var status = getSnapshotStatus(data, 32);
+            var clipCountAcc = getClipCountAcc(data, 34);
+            var clipCountGyr = getClipCountGyr(data, 35);
+
+            var result =
+            {
+                timestamp:    sensor.systemTimestamp,
+                address:      sensor.address,
+                quaternion_w: quaternion.w,
+                quaternion_x: quaternion.x,
+                quaternion_y: quaternion.y,
+                quaternion_z: quaternion.z,
+                freeAcc_x:    freeAcceleration.x,
+                freeAcc_y:    freeAcceleration.y,
+                freeAcc_z:    freeAcceleration.z,
+                status:       status,
+                clipCountAcc: clipCountAcc,
+                clipCountGyr: clipCountGyr
+            };
+
+            // console.log("Payload id 2 bleSensorData " + result.timestamp + ", " + result.address 
+            //     + ", quaternion_w " + result.quaternion_w + ", quaternion_x " + result.quaternion_x + ", quaternion_y " + result.quaternion_y + ", quaternion_z " + result.quaternion_z
+            //     + ", freeAcc_x " + result.freeAcc_x + ", freeAcc_y " + result.freeAcc_y + ", freeAcc_z " + result.freeAcc_z
+            //     + ", status " + result.status + ", clipCountAcc " + result.clipCountAcc + ", clipCountGyr " + result.clipCountGyr);
+
+            return result;
+
+        case MEASURING_PAYLOAD_TYPE_RATE_QUANTITIES_WITH_MAG:
+            var acc = getAcceleration(data, 4);
+            var gyr = getAngularVelocity(data, 16);
+            var mag = getCalibratedMag(data, 28);
+
+            var result =
+            {
+                timestamp:    sensor.systemTimestamp,
+                address:      sensor.address,
+                acc_x:        acc.x,
+                acc_y:        acc.y,
+                acc_z:        acc.z,
+                gyr_x:        gyr.x,
+                gyr_y:        gyr.y,
+                gyr_z:        gyr.z,
+                mag_x:        mag.x,
+                mag_y:        mag.y,
+                mag_z:        mag.z
+            };
+
+            // console.log("Payload id 20 bleSensorData " + result.timestamp + ", " + result.address 
+            //     + ", acc_x " + result.acc_x + ", acc_y " + result.acc_y + ", acc_z " + result.acc_z
+            //     + ", gyr_x " + result.gyr_x + ", gyr_y " + result.gyr_y + ", gyr_z " + result.gyr_z
+            //     + ", mag_x " + result.mag_x + ", mag_y " + result.mag_y + ", mag_z " + result.mag_z);
+
+            return result;
+
+        default:
+            return {};
+    }
 }
 
 // ---------------------------------------------------------------------------------------
@@ -318,16 +409,13 @@ function setSynchronizedTimestamp( sensor, data, systemtime )
         sensorTimeDiff += ROLLOVER;
     }
     sensor.sensorTimestamp = sensorTimestamp;
-
     
     sensor.systemTimestamp = sensor.systemTimestamp + sensorTimeDiff*(1+CLOCK_DELTA);
-
 
     if( sensor.systemTimestamp > systemtime )
     {
         sensor.systemTimestamp = systemtime;
     }
-
 
 }
 
@@ -352,6 +440,122 @@ function getOrientation(data)
 function getSensorTimestamp(data)
 {
     return data.readUInt32LE(0);
+}
+
+// ---------------------------------------------------------------------------------------
+// -- Get euler --
+// ---------------------------------------------------------------------------------------
+function getEuler(data, offset)
+{
+    var x,y,z;
+    
+    x = data.readFloatBE(offset);
+    y = data.readFloatBE(offset + 4);
+    z = data.readFloatBE(offset + 8);
+
+    return {x:x, y:y, z:z};
+}
+
+// ---------------------------------------------------------------------------------------
+// -- Get free acceleration --
+// ---------------------------------------------------------------------------------------
+function getFreeAcceleration(data, offset)
+{
+    var x,y,z;
+    
+    x = data.readFloatLE(offset);
+    y = data.readFloatLE(offset + 4);
+    z = data.readFloatLE(offset + 8);
+
+    return {x:x, y:y, z:z};
+}
+
+// ---------------------------------------------------------------------------------------
+// -- Get orientation quaternion --
+// ---------------------------------------------------------------------------------------
+function getOrientationQuaternion(data, offset)
+{
+    var w,x,y,z;
+    
+    w = data.readFloatLE(offset);
+    x = data.readFloatLE(offset + 4);
+    y = data.readFloatLE(offset + 8);
+    z = data.readFloatLE(offset + 12);
+
+    return {w:w, x:x, y:y, z:z};
+}
+
+// ---------------------------------------------------------------------------------------
+// -- Get snapshot status --
+// ---------------------------------------------------------------------------------------
+function getSnapshotStatus(data, offset)
+{
+    var status = data.readInt16BE(offset);
+    status = (status & 0x1FF) << 8;
+
+    return status;
+}
+
+// ---------------------------------------------------------------------------------------
+// -- Get acceleration clip count --
+// ---------------------------------------------------------------------------------------
+function getClipCountAcc(data, offset)
+{
+    return  data.readInt8(offset);
+}
+
+// ---------------------------------------------------------------------------------------
+// -- Get angular velocity clip count --
+// ---------------------------------------------------------------------------------------
+function getClipCountGyr(data, offset)
+{
+    return  data.readInt8(offset);
+}
+
+// ---------------------------------------------------------------------------------------
+// -- Get acceleration --
+// ---------------------------------------------------------------------------------------
+function getAcceleration(data, offset)
+{
+    var x,y,z;
+    
+    x = data.readFloatBE(offset);
+    y = data.readFloatBE(offset + 4);
+    z = data.readFloatBE(offset + 8);
+
+    return {x:x, y:y, z:z};
+}
+
+// ---------------------------------------------------------------------------------------
+// -- Get angular velocity --
+// ---------------------------------------------------------------------------------------
+function getAngularVelocity(data, offset)
+{
+    var x,y,z;
+    
+    x = data.readFloatBE(offset);
+    y = data.readFloatBE(offset + 4);
+    z = data.readFloatBE(offset + 8);
+
+    return {x:x, y:y, z:z};
+}
+
+// ---------------------------------------------------------------------------------------
+// -- Get calibrated mag --
+// ---------------------------------------------------------------------------------------
+function getCalibratedMag(data, offset)
+{
+    var x,y,z;
+    
+    x = data.readInt16LE(offset);
+    y = data.readInt16LE(offset + 2);
+    z = data.readInt16LE(offset + 4);
+
+    x = x / TWO_POW_TWELVE;
+    y = y / TWO_POW_TWELVE;
+    z = z / TWO_POW_TWELVE;
+
+    return {x:x, y:y, z:z};
 }
 
 // =======================================================================================

@@ -8,6 +8,7 @@
         "ip": "^1.1.5",
         "noble-mac": "https://github.com/Timeular/noble-mac.git",
         "quaternion": "^1.1.0",
-        "socket.io": "^2.3.0"
+        "socket.io": "^2.3.0",
+        "hashmap": "^2.4.0"
     }
 }

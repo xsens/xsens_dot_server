@@ -37,6 +37,7 @@
 // =======================================================================================
 // Packages
 // =======================================================================================
+require('./global');
 var fs = require('fs');
 
 // =======================================================================================
@@ -125,6 +126,11 @@ function setWebsocketHandler( guiHandler )
             console.log('Client disconnected');
         });
 
+        socket.on('getConnectedSensors', function()
+        {
+            sendConnectedSensors(guiHandler);
+        });
+
         socket.on('getFileList', function()
         {
             sendFileList(guiHandler);
@@ -153,6 +159,23 @@ function setHttpGetHandler( guiHandler )
         res.sendFile(process.cwd() + '/index.html' );
     });
 }
+
+// ----------------------------------------------------------------------------
+// -- Send connected sensors --
+// ----------------------------------------------------------------------------
+function sendConnectedSensors( guiHandler )
+{
+    var connectedSensors = [];
+
+    if (globalConnectedSensors != null && globalConnectedSensors != undefined) {
+        globalConnectedSensors.forEach( function (sensor)
+        {
+            connectedSensors.push(sensor.address);
+        });
+    }
+
+    guiHandler.io.emit('connectedSensors', connectedSensors );
+};
 
 // ----------------------------------------------------------------------------
 // -- Send file list --

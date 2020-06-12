@@ -11,6 +11,7 @@
 body 
 {
     font: 14px 'Montserrat';
+    background-color: #43425D;
 }
 
 body, html
@@ -23,11 +24,11 @@ body, html
     user-select: none;
     margin: 10;
     height: 100%;
-    overflow: hidden;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: none;
     touch-action: none;
 }
+
 .actionButton 
 {
     width: 140px;
@@ -39,12 +40,14 @@ body, html
     text-align: center;
     font: 12px 'Montserrat';
     letter-spacing: 0;
-    color: #4D4F5C;
+    color: #EA6852;
+    font-weight: bold;
     opacity: 1;
 }
-.actionButton:active 
+
+.actionButton:hover 
 {
-    background: #43425D 0% 0% no-repeat padding-box;
+    background: #EA6852 0% 0% no-repeat padding-box;
     border-radius: 4px;
     opacity: 1;
     color: #ffffff;
@@ -53,6 +56,101 @@ body, html
 .actionButton:disabled
 {
     border: 2px solid #43425D;
+    color: #43425D;
     opacity: 0.2;
 }
 
+.centerImg
+{
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: 1em;
+    margin-bottom: 1em;
+    width: 50%;
+}
+
+.dropbtn
+{
+    cursor: pointer;
+    width: 140px;
+    height: 36px;
+    outline: none;
+    border: 2px solid #43425D;
+    border-radius: 4px;
+    opacity: 1;
+    text-align: center;
+    font: 12px 'Montserrat';
+    letter-spacing: 0;
+    color: #EA6852;
+    font-weight: bold;
+    opacity: 1;
+}
+
+.dropdown
+{
+    position: relative;
+    display: inline-block;
+}
+
+.dropdown-content
+{
+    display: none;
+    position: absolute;
+    background-color: #f9f9f9;
+    min-width: 220px;
+    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+}
+
+.dropdown-content a
+{
+    color: #EA6852;
+    padding: 10px 6px;
+    font: 12px 'Montserrat';
+    font-weight: bold;
+    text-decoration: none;
+    display: block;
+}
+
+.dropdown-content a:hover
+{
+    background-color: #EA6852;
+    color: #ffffff;
+}
+
+.dropdown:hover .dropdown-content
+{
+    display: block;
+}
+
+.dropdown:hover .dropbtn
+{
+    background-color: #EA6852 0% 0% no-repeat padding-box;
+    border-radius: 4px;
+    opacity: 1;
+}
+
+.roundBackground
+{
+    width: 500px;
+    height: auto;
+    background-color: #43425D;
+    border: 2px solid #43425D;
+    padding: 8px 8px; 
+    border-radius: 12px;
+    -moz-border-radius: 12px;
+}
+
+.wrapper
+{
+    width: 500px;
+}
+
+.wrapper > div
+{
+    display: inline-block;  
+    width: calc(100% / 3.09); 
+    width: -webkit-calc(100% /3.09);
+    width: -moz-calc(100% / 3.09);
+    height: 100%;
+}

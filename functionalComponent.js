@@ -34,40 +34,52 @@
 // Documentation: documentation/Xsens DOT Server - Functional Component Class.pdf
 // =======================================================================================
 
+var HashMap = require('hashmap');
+
 class FunctionalComponent 
 {
     constructor(name, transitions, choicePoints) 
     {
-        this.name               = name;
-        this.stateMachineTable  = {};
-        this.choicePoints       = {};
+        this.name                     = name;
+        this.globalStateMachineTable  = {};
+        this.globaltransitions        = transitions;
+        this.globalChoicePointsTable  = {};
+        this.globalChoicePoints       = choicePoints;
+        this.sensorCurrentState       = new HashMap();
+        this.blePoweredOn             = false;
 
         if( transitions != undefined && transitions.length > 0)
         {
-            this.stateMachineTable = processStateTransitionsTable(transitions);
-            this.currentState = transitions[0].stateName;
+            this.globalStateMachineTable = processStateTransitionsTable(transitions);
+            this.globalCurrentState = transitions[0].stateName;
         }
 
         if (choicePoints != undefined && choicePoints.length > 0)
         {
-            this.choicePoints = processChoicePointsTable(choicePoints);
+            this.globalChoicePointsTable = processChoicePointsTable(choicePoints);
         }
     }
-
-    eventHandler( eventName, parameters )
+    
+    globalEventHandler( eventName, parameters )
     {
-        
-        ///console.log( "state: " + this.currentState + ", event: " + eventName );
 
-        var entryString = this.currentState + '-' + eventName;
-        var transition  = this.stateMachineTable[entryString];
-        if( transition == undefined ) 
+        if ( eventName == 'blePoweredOn'
+            || eventName  == 'startScanning' )
+        {
+            this.sensorCurrentState.clear();
+        }
+        
+        // console.log( "global state: " + this.globalCurrentState + ", event: " + eventName );
+
+        var entryString = this.globalCurrentState + '-' + eventName;
+        var transition  = this.globalStateMachineTable[entryString];
+        if( transition == undefined )
         {
             console.log
             ( 
                 "ERROR: component '" + this.name + "' " +
                 "received unexpected event '" + eventName + "' " +
-                "in state '" + this.currentState + "'"
+                "in state '" + this.globalCurrentState + "'"
             );
             return;
         }
@@ -78,37 +90,173 @@ class FunctionalComponent
             (
                 "ERROR: component '" + this.name + "' " +
                 "has undefined transition function for event '" + eventName + "' " +
-                "in state '" + this.currentState + "'"
+                "in state '" + this.globalCurrentState + "'"
             );
             return;
         }
 
         transition.transFunc( this, parameters );
 
-        var previousState = this.currentState;
-        this.currentState = transition.nextState;
+        var previousState = this.globalCurrentState;
+        this.globalCurrentState = transition.nextState;
 
-        if( this.currentState.charAt(this.currentState.length-1) != '?' ) return;
+        if( this.globalCurrentState.charAt(this.globalCurrentState.length-1) != '?' ) return;
 
-        var choicePoint = this.choicePoints[ this.currentState ];
-        if( choicePoint == undefined )
+        var choicePoint = this.globalChoicePointsTable[ this.globalCurrentState ];
+        if ( choicePoint == undefined )
         {
             console.log
             (
                 "ERROR: component '" + this.name + "'  " +
-                "unknown choice-point '" + this.currentState + "'"
+                "unknown choice-point '" + this.globalCurrentState + "'"
             );
-            this.currentState = previousState;
+            this.globalCurrentState = previousState;
             return;
         }
 
         if( choicePoint(this) )
         {
-            this.eventHandler('yes')
+            this.globalEventHandler('yes')
         }
         else
         {
-            this.eventHandler('no' );
+            this.globalEventHandler('no' );
+        }
+    }
+
+    eventHandler( eventName, parameters )
+    {
+        // console.log( "\n======= eventName: " + eventName + " ======= " );
+
+        if ( eventName == 'blePoweredOn' )
+        {
+            this.blePoweredOn = true;
+
+            console.log( "blePoweredOn: " + this.blePoweredOn );
+
+            this.globalEventHandler( eventName, parameters )
+            return;
+        }
+        else 
+        if ( eventName  == 'startScanning' 
+            || eventName == 'bleScanningStarted'
+            || eventName == 'bleSensorDiscovered'
+            || eventName == 'stopScanning'
+            || eventName == 'bleScanningStopped'
+            || eventName == 'startRecording'
+            || eventName == 'fsOpen'
+            || eventName == 'stopRecording'
+            || eventName == 'fsClose'
+            || eventName == 'bleSensorData' )
+            {
+
+            if ( eventName == 'startRecording' )
+            {
+                this.globalCurrentState = 'Measuring';
+            }
+            else
+            if ( eventName == 'fsOpen' )
+            {
+                this.globalCurrentState = 'Measuring';
+            }
+            else
+            if ( eventName == 'stopRecording' )
+            {
+                this.globalCurrentState = 'Recording';
+            }
+
+            // TODO improvement
+            this.globalEventHandler( eventName, parameters );
+            return;
+        }
+
+        if ( parameters == undefined ) 
+        {
+            return;
+        }
+
+        var addresses = parameters.addresses;
+
+        if ( addresses == undefined ) 
+        {
+            return;
+        }
+
+        var sensorAddress = addresses[0];
+        // console.log( "sensorAddress " + sensorAddress );
+
+        var currentState = this.sensorCurrentState.get(sensorAddress);
+        // console.log( "currentState " + currentState );
+
+        if ( currentState == undefined )
+        {
+            currentState = 'Idle';
+            this.sensorCurrentState.set(sensorAddress, currentState);
+        }
+        // console.log( "after currentState: " + currentState + ", event: " + eventName );
+
+        var entryString = currentState + '-' + eventName;
+        var transition  = this.globalStateMachineTable[entryString];
+
+        // console.log( "entryString: " + entryString + ", transition: " + transition );
+
+        if( transition == undefined ) 
+        {
+            console.log
+            ( 
+                "ERROR: component '" + this.name + "' " +
+                "received unexpected event '" + eventName + "' " +
+                "in state '" + currentState + "'"
+            );
+            return;
+        }
+
+        if( transition.transFunc == undefined)
+        {
+            console.log
+            (
+                "ERROR: component '" + this.name + "' " +
+                "has undefined transition function for event '" + eventName + "' " +
+                "in state '" + currentState + "'"
+            );
+            return;
+        }
+
+        transition.transFunc( this, parameters );
+
+        var previousState = currentState;
+        currentState = transition.nextState;
+        this.sensorCurrentState.set(sensorAddress, currentState);
+
+        // console.log( "======= event end " + currentState + "=======\n" );
+
+        if( currentState.charAt(currentState.length-1) != '?' ) return;
+
+        var choicePoint = this.globalChoicePointsTable[ currentState ];
+        if( choicePoint == undefined )
+        {
+            console.log
+            (
+                "ERROR: component '" + this.name + "'  " +
+                "unknown choice-point '" + currentState + "'"
+            );
+
+            currentState = previousState;
+            this.sensorCurrentState.set(sensorAddress, currentState);
+            // console.log( "after choicePoint currentState " + currentState );
+
+            return;
+        }
+
+        var sensor = [sensorAddress];
+
+        if( choicePoint(this, {addresses:sensor}) )
+        {
+            this.eventHandler('yes', {addresses:sensor})
+        }
+        else
+        {
+            this.eventHandler('no', {addresses:sensor} );
         }
     }
 }
