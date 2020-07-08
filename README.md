@@ -9,13 +9,15 @@ While you can get all measurement modes (exclude high fidelity modes), 3 modes a
 Get more information about Xsens DOT in [Develepor Page](https://www.xsens.com/developer) and [Base](https://base.xsens.com/hc/en-us/categories/360002285079-Wearable-Sensor-Platform).
 
 ## Important Notices
-Disconnect all Bluetooth peripherals (mouse, keyboard) before start Xsens DOT Server to ensure stable Bluetooth connections. 
+* Disconnect all Bluetooth peripherals (mouse, keyboard) before start Xsens DOT Server to ensure stable Bluetooth connections. 
+* Firmware support:
+  * v1.3.0
 
 ## Documentation
 * [System Architecture](https://github.com/xsens/xsens_dot_server/blob/master/documentation/Xsens%20DOT%20Server%20-%20System%20Architecture.pdf): system architecture of Xsens DOT Server.
 * [Sensor Server](https://github.com/xsens/xsens_dot_server/blob/master/documentation/Xsens%20DOT%20Server%20-%20Sensor%20Server.pdf): application and workflow control.
 * [BLE Handler](https://github.com/xsens/xsens_dot_server/blob/master/documentation/Xsens%20DOT%20Server%20-%20BLE%20Handler.pdf): creates an abstraction from the BLE protocol.
-* [Web GUI Handler](https://github.com/xsens/xsens_dot_server/blob/master/documentation/Xsens%20DOT%20Server%20-%20Web%20GUI%20Server.pdf): the web server
+* [Web GUI Handler](https://github.com/xsens/xsens_dot_server/blob/master/documentation/Xsens%20DOT%20Server%20-%20Web%20GUI%20Handler.pdf): the web server
 * [Noble](https://github.com/noble/noble): Node package that implements an interface with the BLE radio (i.e. driver).
 * [Web Client](https://github.com/xsens/xsens_dot_server/blob/master/documentation/Xsens%20DOT%20Server%20-%20Web%20Client.pdf): a web browser that can run on any computer on the local network and that renders an HTML page that implements the GUI.
 
@@ -64,7 +66,7 @@ Disconnect all Bluetooth peripherals (mouse, keyboard) before start Xsens DOT Se
 
 ### Set up on Raspberry Pi
 #### Prerequisites
-* Raspberry Pi 4 Model B 4GB RAM
+* Raspberry Pi 4 Model B 4GB RAM / Raspberry Pi 3 Model B+, 1 GB RAM
 * Install [Raspberry Pi OS](https://www.raspberrypi.org/downloads/raspberry-pi-os/)
 
 #### Installation steps
@@ -122,4 +124,4 @@ All feedback is welcome and helps us to improve!
 
 Please report all bugs by [rasing an issue](https://github.com/xsens/xsens_dot_server/issues/new).
 
-You can also discuss Xsens DOT related topics in our [Community Forum](https://base.xsens.com/hc/en-us/community/topics).
+You can also raise app development questions and feature requests of Xsens DOT in our [Community Forum](https://base.xsens.com/hc/en-us/community/topics).
