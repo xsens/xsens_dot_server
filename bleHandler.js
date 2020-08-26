@@ -257,7 +257,7 @@ class BleHandler
 
         measurementCharacteristic.removeAllListeners();
 
-        var buffer = Buffer.from( [0x01, SENSOR_DISABLE, 0x05] );
+        var buffer = Buffer.from( [0x01, SENSOR_DISABLE, measuringPayloadId] );
 
         controlCharacteristic.write( buffer, false, function(error)
         {
@@ -384,6 +384,69 @@ function convertSensorData( sensor, data, measuringPayloadId )
 
             return result;
 
+        case MEASURING_PAYLOAD_TYPE_CUSTOM_MODE_1:
+            var euler = getEuler(data, 4);
+            var freeAcceleration = getFreeAcceleration(data, 16);
+            var gyr = getAngularVelocity(data, 28);
+
+            var result =
+            {
+                timestamp: sensor.systemTimestamp,
+                address:   sensor.address,
+                euler_x:   euler.x,
+                euler_y:   euler.y,
+                euler_z:   euler.z,
+                freeAcc_x: freeAcceleration.x,
+                freeAcc_y: freeAcceleration.y,
+                freeAcc_z: freeAcceleration.z,
+                gyr_x:     gyr.x,
+                gyr_y:     gyr.y,
+                gyr_z:     gyr.z
+            };
+
+            return result;
+
+        case MEASURING_PAYLOAD_TYPE_CUSTOM_MODE_2:
+            var euler = getEuler(data, 4);
+            var freeAcceleration = getFreeAcceleration(data, 16);
+            var mag = getCalibratedMag(data, 28);
+
+            var result =
+            {
+                timestamp: sensor.systemTimestamp,
+                address:   sensor.address,
+                euler_x:   euler.x,
+                euler_y:   euler.y,
+                euler_z:   euler.z,
+                freeAcc_x: freeAcceleration.x,
+                freeAcc_y: freeAcceleration.y,
+                freeAcc_z: freeAcceleration.z,
+                mag_x:     mag.x,
+                mag_y:     mag.y,
+                mag_z:     mag.z
+            };
+
+            return result;
+
+        case MEASURING_PAYLOAD_TYPE_CUSTOM_MODE_3:
+            var quaternion = getOrientationQuaternion(data, 4);
+            var gyr = getAngularVelocity(data, 20);
+
+            var result =
+            {
+                timestamp:    sensor.systemTimestamp,
+                address:      sensor.address,
+                quaternion_w: quaternion.w,
+                quaternion_x: quaternion.x,
+                quaternion_y: quaternion.y,
+                quaternion_z: quaternion.z,
+                gyr_x:        gyr.x,
+                gyr_y:        gyr.y,
+                gyr_z:        gyr.z
+            };
+
+            return result;
+
         default:
             return {};
     }
@@ -449,9 +512,9 @@ function getEuler(data, offset)
 {
     var x,y,z;
     
-    x = data.readFloatBE(offset);
-    y = data.readFloatBE(offset + 4);
-    z = data.readFloatBE(offset + 8);
+    x = data.readFloatLE(offset);
+    y = data.readFloatLE(offset + 4);
+    z = data.readFloatLE(offset + 8);
 
     return {x:x, y:y, z:z};
 }
@@ -490,7 +553,7 @@ function getOrientationQuaternion(data, offset)
 // ---------------------------------------------------------------------------------------
 function getSnapshotStatus(data, offset)
 {
-    var status = data.readInt16BE(offset);
+    var status = data.readInt16LE(offset);
     status = (status & 0x1FF) << 8;
 
     return status;
@@ -519,9 +582,9 @@ function getAcceleration(data, offset)
 {
     var x,y,z;
     
-    x = data.readFloatBE(offset);
-    y = data.readFloatBE(offset + 4);
-    z = data.readFloatBE(offset + 8);
+    x = data.readFloatLE(offset);
+    y = data.readFloatLE(offset + 4);
+    z = data.readFloatLE(offset + 8);
 
     return {x:x, y:y, z:z};
 }
@@ -533,9 +596,9 @@ function getAngularVelocity(data, offset)
 {
     var x,y,z;
     
-    x = data.readFloatBE(offset);
-    y = data.readFloatBE(offset + 4);
-    z = data.readFloatBE(offset + 8);
+    x = data.readFloatLE(offset);
+    y = data.readFloatLE(offset + 4);
+    z = data.readFloatLE(offset + 8);
 
     return {x:x, y:y, z:z};
 }
