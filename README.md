@@ -11,7 +11,7 @@ Get more information about Xsens DOT in [Develepor Page](https://www.xsens.com/d
 ## Important Notices
 * Disconnect all Bluetooth peripherals (mouse, keyboard) before start Xsens DOT Server to ensure stable Bluetooth connections. 
 * Firmware support:
-  * v1.3.0
+  * v1.4.0
 
 ## Documentation
 * [System Architecture](https://github.com/xsens/xsens_dot_server/blob/master/documentation/Xsens%20DOT%20Server%20-%20System%20Architecture.pdf): system architecture of Xsens DOT Server.
@@ -28,8 +28,9 @@ Get more information about Xsens DOT in [Develepor Page](https://www.xsens.com/d
 
 ### Set up on Windows
 #### Prerequisites
-* Windows 10, 64-bit
+* Windows 10, Windows 7
 * Compatible Bluetooth 4.0 USB adapter or above
+* Recommend to use Chrome or Firefox 
 
 #### Install the following tools
 * Install Python 3.8.3 from the [Micfrosoft Store package](https://docs.python.org/3/using/windows.html#the-microsoft-store-package) 
@@ -101,7 +102,7 @@ Get more information about Xsens DOT in [Develepor Page](https://www.xsens.com/d
    * Windows and macOS: `node xsensDotServer`
    * Raspberry Pi: `sudo node xsensDotServer`
 1. Open Xsens DOT server in browser
-   * Run http://localhost:8080/ and you are able to use Xsens DOT Server!
+   * Run http://localhost:8080/ or http://127.0.0.1:8080/ you are able to use Xsens DOT Server!
 
 ## Known issues
 1. [Connection] Unable to connect sensors in Mac with Bluetooth 5.0.
