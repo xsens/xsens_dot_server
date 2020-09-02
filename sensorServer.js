@@ -40,7 +40,8 @@
 var fs                  = require('fs');
 var BleHandler          = require('./bleHandler');
 var WebGuiHandler       = require('./webGuiHandler');
-var FunctionalComponent = require( './functionalComponent' );
+var FunctionalComponent = require('./functionalComponent');
+var SyncManager         = require('./SyncManager');
 var events              = require('events');
 
 // =======================================================================================
@@ -357,10 +358,57 @@ var transitions =
 		stateName: 'Sensor connected',
 		eventName: 'disconnectSensors',
 		nextState: 'Sensor disconnected?',
-		
+
 		transFunc:function( component, parameters )
-	    {
-	    }
+		{
+		}
+    },
+    {
+        stateName: 'Idle',
+		eventName: 'startSyncing',
+		nextState: 'Syncing',
+
+		transFunc:function( component, parameters )
+		{
+            console.log("startSyncing 000");
+            component.syncManager.startSyncing();
+		}
+    },
+    {
+		stateName: 'Sensor connected',
+		eventName: 'bleSensorConnected',
+		nextState: 'Sensor disconnected?',
+
+		transFunc:function( component, parameters )
+		{
+		}
+    },
+    {
+        stateName: 'Syncing',
+		eventName: 'bleSensorConnected',
+		nextState: 'Syncing',
+
+		transFunc:function( component, parameters )
+		{
+		}
+    },
+    {
+        stateName: 'Syncing',
+		eventName: 'bleSensorDisconnected',
+		nextState: 'Syncing',
+
+		transFunc:function( component, parameters )
+		{
+		}
+    },
+    {
+        stateName: 'Syncing',
+		eventName: 'syncingDone',
+		nextState: 'Idle',
+
+		transFunc:function( component, parameters )
+		{
+		}
     },
     {
 		stateName: 'Idle',
@@ -954,6 +1002,8 @@ class SensorServer extends FunctionalComponent
             component.eventHandler( eventName, parameters );
         });
 
+        this.syncingEvents      = new events.EventEmitter();
+
         // Properties
         this.sensors            = {};
         this.discoveredSensors  = [];
@@ -966,8 +1016,9 @@ class SensorServer extends FunctionalComponent
         this.measuringPayloadId = 0;
         this.lastTimestamp      = 0;
         this.lastWriteTime      = 0;
-        this.ble                = new BleHandler(this.bleEvents);
+        this.ble                = new BleHandler(this.bleEvents, this.syncingEvents);
         this.gui                = new WebGuiHandler(this);
+        this.syncManager        = new SyncManager(this.ble, this.gui, this.syncingEvents);
     }
 }
 

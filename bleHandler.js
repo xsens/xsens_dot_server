@@ -47,6 +47,11 @@ const SENSOR_NAME                          = "Xsens DOT",
       SENSOR_DISABLE                       = 0x00,
       BLE_UUID_CONTROL                     = "15172001494711e98646d663bd873d93",
       BLE_UUID_MEASUREMENT_MEDIATE_PAYLOAD = "15172003494711e98646d663bd873d93",
+      BLE_MID_SYNCING                      = 0x02,
+      SYNCING_ID_START_SYNCING             = 0x01,
+      SYNCING_ID_SYNCING_RESULT            = 0x03,
+      BLE_UUID_RECORDING_CONTROL           = "15177001494711e98646d663bd873d93",
+      BLE_UUID_RECORDING_ACK               = "15177002494711e98646d663bd873d93",
       ROLLOVER                             = 4294967295,
       CLOCK_DELTA                          = 0.0002,
       TWO_POW_TWELVE                       = Math.pow(2, 12);
@@ -57,9 +62,10 @@ const SENSOR_NAME                          = "Xsens DOT",
 
 class BleHandler 
 {
-    constructor( bleEventsInterface )
+    constructor( bleEventsInterface, syncingEventsInterface )
     {
         this.bleEvents = bleEventsInterface;
+        this.syncingEvents = syncingEventsInterface;
         this.discoveredSensorCounter = 0;
         this.central = require('noble-mac');
         this.setBleEventHandlers(this);
@@ -163,7 +169,16 @@ class BleHandler
                 sensor.on( 'disconnect', function()
                 {
                     var addresses = [sensor.address];
-                    bleHandler.sendBleEvent( 'bleSensorDisconnected', { sensor:sensor, addresses:addresses } );
+
+                    if ( isInSyncingProgress )
+                    {
+                        console.log( 'disconnect sensor ' + sensor.address );
+                        bleHandler.sendSyncingEvent( 'bleSensorDisconnected', { sensor:sensor, addresses:addresses } );
+                    }
+                    else
+                    {
+                        bleHandler.sendBleEvent( 'bleSensorDisconnected', { sensor:sensor, addresses:addresses } );
+                    }
 
                     var idx = globalConnectedSensors.indexOf( sensor );
                     if( idx != -1 )
@@ -175,6 +190,11 @@ class BleHandler
                 });
 
                 var addresses = [sensor.address];
+                if ( isInSyncingProgress )
+                {
+                    bleHandler.sendSyncingEvent( 'bleSensorConnected', { sensor:sensor, addresses:addresses } );
+                }
+
                 bleHandler.sendBleEvent( 'bleSensorConnected', { sensor:sensor, addresses:addresses } );
 
                 globalConnectedSensors.push( sensor );
@@ -198,6 +218,23 @@ class BleHandler
             return;
         }
         bleHandler.bleEvents.emit( 'bleEvent', eventName, parameters );
+    }
+
+    // -----------------------------------------------------------------------------------
+    // -- Send syncing event --
+    // -----------------------------------------------------------------------------------
+    sendSyncingEvent( eventName, parameters )
+    {
+        var syncingHandler = this;
+        if( eventName == 'bleSensorError' )
+        {
+            setTimeout( function()
+            {
+                syncingHandler.syncingEvents.emit( 'syncingEvent', eventName, parameters );
+            },10);
+            return;
+        }
+        syncingHandler.syncingEvents.emit( 'syncingEvent', eventName, parameters );
     }
 
     // -----------------------------------------------------------------------------------
@@ -286,6 +323,94 @@ class BleHandler
                 return;
             }
         });
+    }
+
+    // -----------------------------------------------------------------------------------
+    // -- Start syncing --
+    // -----------------------------------------------------------------------------------
+    startSyncing( sensor, rootAddress )
+    {
+        var addressSlice = rootAddress.split(":");
+
+        if ( addressSlice.length != 6 )
+        {
+            console.log( "[startSyncing] invalid MAC address " + rootAddress );
+            return false;
+        }
+
+        // 02 07 01 [C9 7A 28 3F F0 DB] 81
+        var data = [];
+        data[0] = BLE_MID_SYNCING; // MID
+        data[1] = 0x07; // LEN, exclude checkSum
+        data[2] = SYNCING_ID_START_SYNCING;
+
+        for ( var i = 0; i < addressSlice.length; i++ )
+        {
+            data[i + 3] = parseInt( addressSlice[addressSlice.length - i - 1], 16 );
+        }
+
+        data[9] = this.checkSum( data );
+
+        var buffer = Buffer.from( data );
+
+        var controlCharacteristic = sensor.characteristics[BLE_UUID_RECORDING_CONTROL];
+
+        controlCharacteristic.write( buffer, false, function(error)
+        {
+            console.log( sensor.address + " BLE_UUID_RECORDING_CONTROL write " + error );
+        });
+    }
+
+    // -----------------------------------------------------------------------------------
+    // -- Read recording ack --
+    // -----------------------------------------------------------------------------------
+    readRecordingAck( sensor )
+    {
+        var bleHandler = this,
+            characteristic = sensor.characteristics[BLE_UUID_RECORDING_ACK];
+
+        characteristic.read(function(error, data)
+        {
+            console.log(sensor.address + " BLE_UUID_RECORDING_ACK read " + data.toString('hex'));
+
+            if( error )
+            {
+                return;
+            }
+
+            console.log(sensor.address + " BLE_UUID_RECORDING_ACK read " + isInSyncingProgress);
+
+            //  02 02 03 00 f9
+            if (isInSyncingProgress
+                && data != undefined
+                && data.length >= 5
+                && data[0] == BLE_MID_SYNCING
+                && data[2] == SYNCING_ID_SYNCING_RESULT)
+            {
+                var isSuccess = (data[3] == 0x00);
+                bleHandler.sendSyncingEvent( 'bleSensorSyncingDone', { sensor:sensor, isSuccess:isSuccess } );
+            }
+        });
+    }
+
+    // -----------------------------------------------------------------------------------
+    // -- Compute checkSum --
+    // -----------------------------------------------------------------------------------
+    checkSum(bytes)
+    {
+        var sum = 0;
+        var len = bytes.length;
+
+        for (var i = 0; i < len; i++)
+        {
+            sum += bytes[i];
+        }
+
+        var checkSum = (0x00FF & (-sum));
+
+        console.log( "sum " + sum + ", checkSum " + checkSum );
+
+       return checkSum;
     }
 }
 

@@ -6,3 +6,5 @@ global.MEASURING_PAYLOAD_TYPE_CUSTOM_MODE_2            = '23';
 global.MEASURING_PAYLOAD_TYPE_CUSTOM_MODE_3            = '24';
 
 global.globalConnectedSensors = [];
+global.globalSyncingSensors   = [];
+global.isInSyncingProgress    = false;

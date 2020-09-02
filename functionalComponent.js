@@ -128,6 +128,17 @@ class FunctionalComponent
     {
         // console.log( "\n======= eventName: " + eventName + " ======= " );
 
+        if ( isInSyncingProgress )
+        {
+            console.log( "======= isInSyncingProgress: " + isInSyncingProgress );
+            return;
+        }
+
+        if ( (!isInSyncingProgress && this.globalCurrentState == 'Syncing') )
+        {
+            this.globalCurrentState = 'Idle';
+        }
+
         if ( eventName == 'blePoweredOn' )
         {
             this.blePoweredOn = true;
@@ -147,7 +158,8 @@ class FunctionalComponent
             || eventName == 'fsOpen'
             || eventName == 'stopRecording'
             || eventName == 'fsClose'
-            || eventName == 'bleSensorData' )
+            || eventName == 'bleSensorData'
+            || eventName == 'startSyncing' )
             {
 
             if ( eventName == 'startRecording' )
@@ -188,7 +200,7 @@ class FunctionalComponent
         var currentState = this.sensorCurrentState.get(sensorAddress);
         // console.log( "currentState " + currentState );
 
-        if ( currentState == undefined )
+        if ( currentState == undefined || (!isInSyncingProgress && currentState == 'Syncing') )
         {
             currentState = 'Idle';
             this.sensorCurrentState.set(sensorAddress, currentState);

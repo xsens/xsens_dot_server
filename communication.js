@@ -41,7 +41,8 @@ setEventHandlerFunctions();
 var scanControlButton,
     measurementControlButton,
     stopMeasuringButton,
-    measurementPayloadList;
+    measurementPayloadList,
+    syncingModal;
 
 var discoveredSensors = [],
     connectedSensors  = [],
@@ -73,6 +74,8 @@ window.onload = function( eventName, parameters  )
     stopMeasuringButton.hidden = true;
 
     measurementPayloadList = document.getElementById("measurementPayloadList");
+
+    syncingModal = document.querySelector(".modal");
 
     getConnectedSensors();
 
@@ -267,6 +270,31 @@ function setEventHandlerFunctions()
         }
     };
 
+    eventHandlerFunctions[ 'syncingDone' ] = function( eventName, parameters  )
+    {
+        console.log( "syncingDone " + parameters.sensor + ", " + parameters.isSuccess + ", " + parameters.isAllSuccess );
+
+        if ( parameters.isAllSuccess != undefined )
+        {
+            if ( parameters.isAllSuccess )
+            {
+                console.log( "measuringPayloadId " + measuringPayloadId );
+
+                stopMeasuringButton.innerHTML = "Starting...";
+
+                for (  i = 0; i < connectedSensors.length; i++ )
+                {
+                    var sensor = [connectedSensors[i]];
+                    sendGuiEvent( 'startMeasuring', {addresses:sensor, measuringPayloadId: measuringPayloadId} );
+                }
+            } else {
+                enableOrDisableMeasurementControlButton();
+                enableOrDisableConnectButtons(false);
+            }
+
+            syncingModal.style.display = 'none';
+        }
+    };
 }
 
 function guiEventHandler( eventName, parameters )
@@ -591,14 +619,14 @@ function measurementControlButtonClicked(payloadId)
         measurementPayloadList.style.display = 'none';
         measurementControlButton.hidden = true;
 
-        stopMeasuringButton.innerHTML = "Starting...";
         stopMeasuringButton.hidden = false;
 
-        for (  i = 0; i < connectedSensors.length; i++ )
-        {
-            var sensor = [connectedSensors[i]];
-            sendGuiEvent( 'startMeasuring', {addresses:sensor, measuringPayloadId: measuringPayloadId} );
-        }
+        stopMeasuringButton.innerHTML = "Syncing...";
+        stopMeasuringButton.disabled = true;
+
+        sendGuiEvent( 'startSyncing', {} );
+        enableOrDisableConnectButtons(true);
+        syncingModal.style.display = 'block';
     }
 }
 
