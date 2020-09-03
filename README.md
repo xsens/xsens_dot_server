@@ -1,10 +1,18 @@
 ## Overview
 Xsens DOT Server is a simple web server that can scan, connect and start measurement with Xsens DOT on Windows, macOS and Raspberry Pi. The system is built using Node.js in combination with [Noble](https://github.com/abandonware/noble). 
 
-While you can get all measurement modes (exclude high fidelity modes), 3 modes are currently supported in Xsens DOT Server:
-* Complete (Euler)
-* Extended (Quaternion)
-* Rate quantities (with mag)
+**Functions**
+* Scan sensor
+* Connect sensor
+* Synchronization
+* Real-time streaming - While you can get all measurement modes (exclude high fidelity modes), 6 modes are currently supported in Xsens DOT Server:
+  * Complete (Euler)
+  * Extended (Quaternion)
+  * Rate quantities (with mag)
+  * Custom mode 1
+  * Custom mode 2
+  * Custom mode 3
+* Data logging
 
 Get more information about Xsens DOT in [Develepor Page](https://www.xsens.com/developer) and [Base](https://base.xsens.com/hc/en-us/categories/360002285079-Wearable-Sensor-Platform).
 
