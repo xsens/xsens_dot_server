@@ -41,7 +41,7 @@ var fs                  = require('fs');
 var BleHandler          = require('./bleHandler');
 var WebGuiHandler       = require('./webGuiHandler');
 var FunctionalComponent = require('./functionalComponent');
-var SyncManager         = require('./SyncManager');
+var SyncManager         = require('./syncManager');
 var events              = require('events');
 
 // =======================================================================================
