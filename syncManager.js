@@ -76,7 +76,7 @@ class SyncManager
                 setTimeout( function()
                 {
                     component.bleHandler.readRecordingAck( parameters.sensor );
-                }, 1000);
+                }, 1500);
                 break;
 
             case 'bleSensorSyncingDone':

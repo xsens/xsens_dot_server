@@ -660,6 +660,42 @@ var transitions =
 	    }
     },
     {
+		stateName: 'Recording',
+		eventName: 'resetHeading',
+		nextState: 'Recording',
+
+		transFunc:function( component, parameters )
+	    {
+            parameters.measuringSensors.forEach( function (address)
+            {
+                var sensor = component.sensors[address];
+
+                if( sensor != undefined )
+                {
+                    component.ble.resetHeading( sensor );
+                }
+            });
+	    }
+    },
+    {
+		stateName: 'Recording',
+		eventName: 'revertHeading',
+		nextState: 'Recording',
+
+		transFunc:function( component, parameters )
+	    {
+            parameters.measuringSensors.forEach( function (address)
+            {
+                var sensor = component.sensors[address];
+
+                if( sensor != undefined )
+                {
+                    component.ble.revertHeading( sensor );
+                }
+            });
+	    }
+    },
+    {
 		stateName: 'Measuring',
 		eventName: 'startRecording',
 		nextState: 'Measuring',
@@ -1016,8 +1052,8 @@ class SensorServer extends FunctionalComponent
         this.measuringPayloadId = 0;
         this.lastTimestamp      = 0;
         this.lastWriteTime      = 0;
-        this.ble                = new BleHandler(this.bleEvents, this.syncingEvents);
         this.gui                = new WebGuiHandler(this);
+        this.ble                = new BleHandler(this.bleEvents, this.syncingEvents, this.gui);
         this.syncManager        = new SyncManager(this.ble, this.gui, this.syncingEvents);
     }
 }

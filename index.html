@@ -49,6 +49,9 @@
     <hr>
 
     <div width="500px" align="center">
+      <div id="measurementMode" style="color: white; margin-top: 2px; width: 500px; text-align: left; font-weight: bold;" hidden>Measurement Mode: Complete (Euler)</div>
+      <div id="headingResetTip" style="color: white; margin-top: 2px; width: 500px; text-align: left;" hidden>Heading reset/revert setting is only available for orientation data.</div>
+
       <div class="wrapper" style="padding-top: 12px; padding-bottom: 12px;">
         <div style="position: relative;">
           <button id="scanControlButton" class="actionButton" style="position: absolute; left: 0px; margin-top: -18px;" onclick="scanControlButtonClicked()">Start Scanning</button>
@@ -56,6 +59,8 @@
 
         <div style="position: relative;">
           <div style="position: absolute; left: 0px; right: 0px; margin-top: -18px;">
+            <button id="headingResetButton" class="actionButton" hidden onclick="headingResetButtonClicked()">Heading Reset</button>
+
             <div class="dropdown">
               <button id="measurementControlButton" class="dropbtn actionButton" hidden>Start Logging</button>
               <div id="measurementPayloadList" class="dropdown-content">

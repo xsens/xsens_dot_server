@@ -47,6 +47,10 @@ const SENSOR_NAME                          = "Xsens DOT",
       SENSOR_DISABLE                       = 0x00,
       BLE_UUID_CONTROL                     = "15172001494711e98646d663bd873d93",
       BLE_UUID_MEASUREMENT_MEDIATE_PAYLOAD = "15172003494711e98646d663bd873d93",
+      BLE_UUID_ORIENTATION_RESET_CONTROL   = "15172006494711e98646d663bd873d93",
+      HEADING_STATUS_XRM_HEADING           = 1,
+      HEADING_STATUS_XRM_DEFAULT_ALIGNMENT = 7,
+      HEADING_STATUS_XRM_NONE              = 8,
       BLE_MID_SYNCING                      = 0x02,
       SYNCING_ID_START_SYNCING             = 0x01,
       SYNCING_ID_SYNCING_RESULT            = 0x03,
@@ -62,10 +66,11 @@ const SENSOR_NAME                          = "Xsens DOT",
 
 class BleHandler 
 {
-    constructor( bleEventsInterface, syncingEventsInterface )
+    constructor( bleEventsInterface, syncingEventsInterface, guiInterface )
     {
         this.bleEvents = bleEventsInterface;
         this.syncingEvents = syncingEventsInterface;
+        this.guiInterface = guiInterface;
         this.discoveredSensorCounter = 0;
         this.central = require('noble-mac');
         this.setBleEventHandlers(this);
@@ -199,6 +204,11 @@ class BleHandler
 
                 globalConnectedSensors.push( sensor );
                 console.log('Add global connected sensor ' + sensor.address);
+
+                setTimeout( function()
+                {
+                    bleHandler.readHeadingStatus( sensor );
+                }, 100);
             });
         });
     }
@@ -322,6 +332,64 @@ class BleHandler
                 bleHandler.sendBleEvent( 'bleSensorError', { sensor:sensor, error: error } );
                 return;
             }
+        });
+    }
+
+    // -----------------------------------------------------------------------------------
+    // -- Read heading status --
+    // -----------------------------------------------------------------------------------
+    readHeadingStatus( sensor )
+    {
+        var bleHandler = this,
+            characteristic = sensor.characteristics[BLE_UUID_ORIENTATION_RESET_CONTROL];
+
+        characteristic.read( function(error, data )
+        {
+            console.log(sensor.address + " read heading status " + data.toString('hex'));
+
+            if( error )
+            {
+                return;
+            }
+
+            var status = data[0];
+
+            if (status == HEADING_STATUS_XRM_NONE
+                || status == HEADING_STATUS_XRM_DEFAULT_ALIGNMENT
+                || status == HEADING_STATUS_XRM_HEADING)
+            {
+                bleHandler.guiInterface.sendGuiEvent( 'readHeadingStatus', {address: sensor.address, status: status} );
+            }
+        });
+    }
+
+    // -----------------------------------------------------------------------------------
+    // -- Heading reset --
+    // -----------------------------------------------------------------------------------
+    resetHeading( sensor )
+    {
+        var characteristic = sensor.characteristics[BLE_UUID_ORIENTATION_RESET_CONTROL];
+
+        var buffer = Buffer.from( [0x01, 0x00] );
+
+        characteristic.write( buffer, false, function(error)
+        {
+            console.log( sensor.address + " Heading reset " + error );
+        });
+    }
+
+    // -----------------------------------------------------------------------------------
+    // -- Heading revert --
+    // -----------------------------------------------------------------------------------
+    revertHeading( sensor )
+    {
+        var characteristic = sensor.characteristics[BLE_UUID_ORIENTATION_RESET_CONTROL];
+
+        var buffer = Buffer.from( [0x07, 0x00] );
+
+        characteristic.write( buffer, false, function(error)
+        {
+            console.log( sensor.address + " Heading revert " + error );
         });
     }
 

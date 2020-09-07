@@ -42,11 +42,16 @@ var scanControlButton,
     measurementControlButton,
     stopMeasuringButton,
     measurementPayloadList,
-    syncingModal;
+    syncingModal,
+    measurementMode,
+    headingResetTip,
+    headingResetButton;
 
 var discoveredSensors = [],
     connectedSensors  = [],
     measuringSensors  = [];
+
+var lastHeadingStatusList = [];
 
 var scanningTimeoutId;
 
@@ -55,12 +60,21 @@ var measuringPayloadId = -1;
 var lastSensorsDataTimeMap = [];
 var lastSensorDataTime     = 0;
 
+const MEASURING_PAYLOAD_TYPE_COMPLETE_EULER           = '16';
+const MEASURING_PAYLOAD_TYPE_EXTENDED_QUATERNION      = '2';
+const MEASURING_PAYLOAD_TYPE_RATE_QUANTITIES_WITH_MAG = '20';
+const MEASURING_PAYLOAD_TYPE_CUSTOM_MODE_1            = '22';
+const MEASURING_PAYLOAD_TYPE_CUSTOM_MODE_2            = '23';
+const MEASURING_PAYLOAD_TYPE_CUSTOM_MODE_3            = '24';
+
 const ID_LOGO_IMAGE                = "logoImage";
 const ID_CONNECTION_CONTROL_BUTTON = "connectionControlButton";
 const ID_SENSOR_DATA_INDICATOR     = "sensorDataIndicator";
 
 const TEXT_CONNECT    = "Connect";
 const TEXT_DISCONNECT = "Disconnect";
+
+const HEADING_STATUS_XRM_HEADING = 1;
 
 window.onload = function( eventName, parameters  )
 {
@@ -76,6 +90,10 @@ window.onload = function( eventName, parameters  )
     measurementPayloadList = document.getElementById("measurementPayloadList");
 
     syncingModal = document.querySelector(".modal");
+
+    measurementMode = document.getElementById("measurementMode");
+    headingResetTip = document.getElementById("headingResetTip");
+    headingResetButton = document.getElementById("headingResetButton");
 
     getConnectedSensors();
 
@@ -166,6 +184,7 @@ function setEventHandlerFunctions()
 
         enableOrDisableMeasurementControlButton();
 
+        removeLastHeadingStatus(parameters.address);
     };
 
     eventHandlerFunctions[  'sensorEnabled' ] = function( eventName, parameters  )
@@ -187,6 +206,42 @@ function setEventHandlerFunctions()
         }
 
         enableOrDisableConnectButtons(true);
+
+        // Show current measurement mode
+        var modeStr = "";
+        var isHiddenHeadingResetTip = true;
+        switch (measuringPayloadId)
+        {
+            case MEASURING_PAYLOAD_TYPE_COMPLETE_EULER:
+                modeStr = "Measurement Mode: Complete (Euler)";
+                break;
+
+            case MEASURING_PAYLOAD_TYPE_EXTENDED_QUATERNION:
+                modeStr = "Measurement Mode: Extended (Quaternion)";
+                break;
+
+            case MEASURING_PAYLOAD_TYPE_RATE_QUANTITIES_WITH_MAG:
+                modeStr = "Measurement Mode: Rate quantities (with mag)";
+                isHiddenHeadingResetTip = false;
+                break;
+
+            case MEASURING_PAYLOAD_TYPE_CUSTOM_MODE_1:
+                modeStr = "Measurement Mode: Custom Mode 1";
+                break;
+
+            case MEASURING_PAYLOAD_TYPE_CUSTOM_MODE_2:
+                modeStr = "Measurement Mode: Custom Mode 2";
+                break;
+
+            case MEASURING_PAYLOAD_TYPE_CUSTOM_MODE_3:
+                modeStr = "Measurement Mode: Custom Mode 3";
+                break;
+        }
+        measurementMode.innerHTML = modeStr;
+        measurementMode.hidden = false;
+
+        headingResetTip.hidden = isHiddenHeadingResetTip;
+        headingResetButton.hidden = !isHiddenHeadingResetTip;
     };
 
     eventHandlerFunctions[  'allSensorsEnabled' ] = function( eventName, parameters  )
@@ -212,9 +267,13 @@ function setEventHandlerFunctions()
             scanControlButton.disabled = false;
             stopMeasuringButton.innerHTML = "Stop logging";
             measurementPayloadList.style.display = '';
+
+            headingResetTip.hidden = allSensorsDisabled;
+            headingResetButton.hidden = allSensorsDisabled;
         }
 
         stopMeasuringButton.hidden = allSensorsDisabled;
+        measurementMode.hidden = allSensorsDisabled;
 
         enableOrDisableConnectButtons(false);
         getFileList();
@@ -294,6 +353,14 @@ function setEventHandlerFunctions()
 
             syncingModal.style.display = 'none';
         }
+    };
+
+    eventHandlerFunctions[ 'readHeadingStatus' ] = function( eventName, parameters  )
+    {
+        console.log( "readHeadingStatus " + parameters.address + ", " + parameters.status );
+
+        addLastHeadingStatus( parameters );
+        updateHeadingResetButton();
     };
 }
 
@@ -537,6 +604,73 @@ function sensorSelection( sensorList, name )
     }
 }
 
+function addLastHeadingStatus( parameters )
+{
+    var idx = -1;
+
+    lastHeadingStatusList.forEach( function (item)
+    {
+        if (item.address == parameters.address)
+        {
+            item.status = parameters.status;
+            idx++;
+        }
+    });
+
+    if( idx == -1 )
+    {
+        lastHeadingStatusList.push( parameters );
+    }
+
+    console.log( "Add lastHeadingStatusList " + lastHeadingStatusList );
+}
+
+function removeLastHeadingStatus( address )
+{
+    var idx = -1;
+
+    for (var i = 0; i < lastHeadingStatusList.length; i++)
+    {
+        if (lastHeadingStatusList[i].address == address)
+        {
+            idx = i;
+            break;
+        }
+    }
+
+    if( idx != -1 )
+    {
+        lastHeadingStatusList.splice( idx, 1 );
+    }
+
+    console.log( "Remove lastHeadingStatusList " + lastHeadingStatusList );
+}
+
+function hasHeadingResetDevice()
+{
+    for (var i = 0; i < lastHeadingStatusList.length; i++)
+    {
+        if (lastHeadingStatusList[i].status == HEADING_STATUS_XRM_HEADING)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function updateHeadingResetButton()
+{
+    if (hasHeadingResetDevice())
+    {
+        headingResetButton.innerHTML = 'Heading Revert';
+    }
+    else
+    {
+        headingResetButton.innerHTML = 'Heading Reset';
+    }
+}
+
 function scanControlButtonClicked()
 {
     if( scanControlButton.innerHTML == 'Start Scanning' )
@@ -600,6 +734,32 @@ function connectionControlButtonClicked()
         sendGuiEvent( 'disconnectSensors', {addresses:sensor} );
         this.disabled = true;
         this.innerHTML = "Disconnecting..."
+    }
+}
+
+function headingResetButtonClicked()
+{
+    updateHeadingResetButton();
+
+    if (headingResetButton.innerHTML == 'Heading Reset')
+    {
+        sendGuiEvent( 'resetHeading', {measuringSensors: measuringSensors} );
+
+        headingResetButton.disabled = true;
+        setTimeout(() => {
+            headingResetButton.innerHTML = 'Heading Revert';
+            headingResetButton.disabled = false;
+        }, 1000);
+    }
+    else if (headingResetButton.innerHTML == 'Heading Revert')
+    {
+        sendGuiEvent( 'revertHeading', {measuringSensors: measuringSensors} );
+
+        headingResetButton.disabled = true;
+        setTimeout(() => {
+            headingResetButton.innerHTML = 'Heading Reset';
+            headingResetButton.disabled = false;
+        }, 1000);
     }
 }
 

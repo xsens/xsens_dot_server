@@ -140,7 +140,12 @@ function setWebsocketHandler( guiHandler )
         {
             files.forEach( function (filename)
             {
-                fs.unlinkSync( process.cwd() + "/" + APP_DATA_DIR + "/" + filename );
+                var path = process.cwd() + "/" + APP_DATA_DIR + "/" + filename;
+
+                if (fs.existsSync( path ))
+                {
+                    fs.unlinkSync( path );
+                }
             });
             
             sendFileList(guiHandler);
