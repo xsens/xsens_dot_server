@@ -1079,7 +1079,13 @@ function removeSensor( sensor, sensorList )
 // ---------------------------------------------------------------------------------------
 function startRecordingToFile( component, name )
 {
-    var fullPath = process.cwd() + RECORDINGS_PATH + name + ".csv";
+    var dataDir = process.cwd() + RECORDINGS_PATH;
+    if (!fs.existsSync(dataDir))
+    {
+        fs.mkdirSync(dataDir);
+    }
+
+    var fullPath = dataDir + name + ".csv";
 
     if (fs.existsSync(fullPath))
     {
