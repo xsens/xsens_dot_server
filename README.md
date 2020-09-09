@@ -13,6 +13,7 @@ Xsens DOT Server is a simple web server that can scan, connect and start measure
   * Custom mode 2
   * Custom mode 3
 * Data logging
+* Heading reset
 
 Get more information about Xsens DOT in [Develepor Page](https://www.xsens.com/developer) and [Base](https://base.xsens.com/hc/en-us/categories/360002285079-Wearable-Sensor-Platform).
 
