@@ -370,7 +370,6 @@ var transitions =
 
 		transFunc:function( component, parameters )
 		{
-            console.log("startSyncing 000");
             component.syncManager.startSyncing();
 		}
     },
@@ -657,6 +656,16 @@ var transitions =
 		
 		transFunc:function( component, parameters )
 	    {
+	    }
+    },
+    {
+		stateName: 'Idle',
+		eventName: 'enableSync',
+		nextState: 'Idle',
+
+		transFunc:function( component, parameters )
+	    {
+            component.ble.enableSync( parameters.isSyncingEnabled );
 	    }
     },
     {

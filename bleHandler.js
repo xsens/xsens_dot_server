@@ -75,6 +75,8 @@ class BleHandler
         this.central = require('noble-mac');
         this.setBleEventHandlers(this);
 
+        this.isSyncingEnabled = true;
+
         console.log( "BLE Handler started." );
     }
 
@@ -265,7 +267,7 @@ class BleHandler
                 bleHandler.sendBleEvent
                 ( 
                     "bleSensorData", 
-                    convertSensorData( sensor, data, measuringPayloadId )
+                    convertSensorData( sensor, data, measuringPayloadId, bleHandler.isSyncingEnabled )
                 );
             });
         }
@@ -480,6 +482,14 @@ class BleHandler
 
        return checkSum;
     }
+
+    // ---------------------------------------------------------------------------------------
+    // -- Enable/disable synchronization --
+    // ---------------------------------------------------------------------------------------
+    enableSync( isSyncingEnabled )
+    {
+        this.isSyncingEnabled = isSyncingEnabled;
+    }
 }
 
 // =======================================================================================
@@ -489,12 +499,19 @@ class BleHandler
 // ---------------------------------------------------------------------------------------
 // -- Convert sensor data --
 // ---------------------------------------------------------------------------------------
-function convertSensorData( sensor, data, measuringPayloadId )
+function convertSensorData( sensor, data, measuringPayloadId, isSyncingEnabled )
 {
-    const hrTime = process.hrtime();
-    var systemtime = hrTime[0] * 1000000 + hrTime[1] / 1000;
+    if (isSyncingEnabled)
+    {
+        sensor.systemTimestamp = getSensorTimestamp( data );
+    }
+    else
+    {
+        const hrTime = process.hrtime();
+        var systemtime = hrTime[0] * 1000000 + hrTime[1] / 1000;
 
-    setSynchronizedTimestamp( sensor, data, systemtime );
+        setSynchronizedTimestamp( sensor, data, systemtime );
+    }
 
     switch (measuringPayloadId)
     {

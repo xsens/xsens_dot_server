@@ -158,6 +158,7 @@ class FunctionalComponent
             || eventName == 'fsOpen'
             || eventName == 'stopRecording'
             || eventName == 'fsClose'
+            || eventName == 'enableSync'
             || eventName == 'bleSensorData'
             || eventName == 'resetHeading'
             || eventName == 'revertHeading'

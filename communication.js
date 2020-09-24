@@ -45,7 +45,8 @@ var scanControlButton,
     syncingModal,
     measurementMode,
     headingResetTip,
-    headingResetButton;
+    headingResetButton,
+    syncControlButton;
 
 var discoveredSensors = [],
     connectedSensors  = [],
@@ -59,6 +60,8 @@ var measuringPayloadId = -1;
 
 var lastSensorsDataTimeMap = [];
 var lastSensorDataTime     = 0;
+
+var isSyncingEnabled = true;
 
 const MEASURING_PAYLOAD_TYPE_COMPLETE_EULER           = '16';
 const MEASURING_PAYLOAD_TYPE_EXTENDED_QUATERNION      = '2';
@@ -94,6 +97,9 @@ window.onload = function( eventName, parameters  )
     measurementMode = document.getElementById("measurementMode");
     headingResetTip = document.getElementById("headingResetTip");
     headingResetButton = document.getElementById("headingResetButton");
+
+    syncControlButton = document.getElementById("syncControlButton");
+    syncControlButton.hidden = measurementControlButton.hidden;
 
     getConnectedSensors();
 
@@ -196,6 +202,8 @@ function setEventHandlerFunctions()
         measurementControlButton.disabled = (measuringSensors.length == 0);
         measurementControlButton.hidden = true;
 
+        syncControlButton.hidden = measurementControlButton.hidden;
+
         stopMeasuringButton.innerHTML = "Stop Logging";
         stopMeasuringButton.disabled = false;
         stopMeasuringButton.hidden = false;
@@ -260,6 +268,8 @@ function setEventHandlerFunctions()
         {
             measurementControlButton.disabled = !allSensorsDisabled;
             measurementControlButton.hidden = !allSensorsDisabled;
+
+            syncControlButton.hidden = measurementControlButton.hidden;
         }
 
         if (allSensorsDisabled)
@@ -425,6 +435,8 @@ function enableOrDisableMeasurementControlButton()
 {
     measurementControlButton.disabled = connectedSensors.length == 0;
     measurementControlButton.hidden = connectedSensors.length == 0 || measuringSensors.length != 0;
+
+    syncControlButton.hidden = measurementControlButton.hidden;
 
     if (measuringSensors.length == 0)
         measurementPayloadList.style.display = '';
@@ -779,15 +791,48 @@ function measurementControlButtonClicked(payloadId)
         measurementPayloadList.style.display = 'none';
         measurementControlButton.hidden = true;
 
+        syncControlButton.hidden = measurementControlButton.hidden;
+
         stopMeasuringButton.hidden = false;
 
-        stopMeasuringButton.innerHTML = "Syncing...";
-        stopMeasuringButton.disabled = true;
+        if (isSyncingEnabled)
+        {
+            stopMeasuringButton.innerHTML = "Syncing...";
+            stopMeasuringButton.disabled = true;
 
-        sendGuiEvent( 'startSyncing', {} );
-        enableOrDisableConnectButtons(true);
-        syncingModal.style.display = 'block';
+            sendGuiEvent( 'startSyncing', {} );
+            enableOrDisableConnectButtons(true);
+            syncingModal.style.display = 'block';
+        }
+        else
+        {
+            stopMeasuringButton.innerHTML = "Starting...";
+
+            for (  i = 0; i < connectedSensors.length; i++ )
+            {
+                var sensor = [connectedSensors[i]];
+                sendGuiEvent( 'startMeasuring', {addresses:sensor, measuringPayloadId: measuringPayloadId} );
+            }
+
+            enableOrDisableConnectButtons(true);
+        }
     }
+}
+
+function syncControlButtonClicked()
+{
+    if (syncControlButton.innerHTML == 'Disable Sync')
+    {
+        syncControlButton.innerHTML = 'Enable Sync';
+        isSyncingEnabled = false;
+    }
+    else
+    {
+        syncControlButton.innerHTML = 'Disable Sync';
+        isSyncingEnabled = true;
+    }
+
+    sendGuiEvent( 'enableSync', {isSyncingEnabled: isSyncingEnabled} );
 }
 
 function stopMeasuringButtonClicked()
