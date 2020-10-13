@@ -128,6 +128,13 @@ If you encounter `Error: No compatible USB Bluetooth 4.0 device found!` when try
  3. Add Bluetooth VID & PID in usb.js (line 66), save and close.<br>
 &nbsp;<img height="80" src="images/image012.gif"/>
  4. Run Xsens DOT Server again.
+ 
+ #### Reinstall Bluetooth adapter
+ After replacing the Bluetooth adapter with WinUSB driver, you cannot connect to Bluetooth devices with your PC. Here is the way to reinstall the Bluetooth adapter:
+  1. Go to **Device Manager** -> **Universal Serial Bus devices**
+  2. Find your converted WinUSB driver and uninstall
+  3. In **Device Manager**, go to **Action** (top menu), then **Scan for hardware changes** and let it reinstall
+  4. You should able to find your Bluetooth adapter back in **Bluetooth**.
 
 ## Bug reports and feedback
 All feedback is welcome and helps us to improve!
