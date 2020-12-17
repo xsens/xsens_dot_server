@@ -121,7 +121,7 @@ class SyncManager
                 isInSyncingProgress = false;
                 component.onSyncingDone();
             }
-        }, 40000);
+        }, 48000);
 
         var isSuccess = false;
         var rootAddress = "";
@@ -142,6 +142,18 @@ class SyncManager
         {
             component.bleHandler.startSyncing(sensor, rootAddress);
         });
+
+        setTimeout( function()
+        {
+
+            if ( isInSyncingProgress )
+            {
+                globalSyncingSensors.forEach( function (sensor)
+                {
+                    component.bleHandler.disconnectSensor(sensor);
+                });
+            }
+        }, 800);
     }
 
     onSyncingDone()
