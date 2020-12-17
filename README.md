@@ -20,7 +20,7 @@ Get more information about Xsens DOT in [Develepor Page](https://www.xsens.com/d
 ## Important Notices
 * Disconnect all Bluetooth peripherals (mouse, keyboard) before start Xsens DOT Server to ensure stable Bluetooth connections. 
 * Firmware support:
-  * v1.4.0
+  * v1.6.0
 
 ## Documentation
 * [System Architecture](https://github.com/xsens/xsens_dot_server/blob/master/documentation/Xsens%20DOT%20Server%20-%20System%20Architecture.pdf): system architecture of Xsens DOT Server.
