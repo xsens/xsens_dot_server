@@ -404,8 +404,12 @@ class BleHandler
 
         if ( addressSlice.length != 6 )
         {
-            console.log( "[startSyncing] invalid MAC address " + rootAddress );
-            return false;
+            addressSlice = rootAddress.split("-");
+            if(addressSlice.length != 6 )
+            {
+                console.log( "[startSyncing] invalid MAC address " + rootAddress );
+                return false;
+            }
         }
 
         // 02 07 01 [C9 7A 28 3F F0 DB] 81

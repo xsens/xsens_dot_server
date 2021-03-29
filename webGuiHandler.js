@@ -148,7 +148,11 @@ function setWebsocketHandler( guiHandler )
                 }
             });
             
-            sendFileList(guiHandler);
+            setTimeout( function()
+            {
+                sendFileList(guiHandler);
+            }, 100);
+            
         });
 
     });

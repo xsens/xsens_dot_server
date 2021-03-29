@@ -386,37 +386,48 @@ function guiEventHandler( eventName, parameters )
 
 function processFileList( files )
 {
-    if( files == undefined || files.length == 0 ) return;
-    
     var recordings = document.getElementById("recordings");
-
-    while( recordings.firstChild ) 
+    if( files == undefined || files.length == 0 )
     {
-        recordings.removeChild(recordings.firstChild);
+        if(recordings.hasChildNodes())
+        {
+            while( recordings.firstChild ) 
+            {
+            recordings.removeChild(recordings.firstChild);
+            }
+        }
+    }
+    else
+    {
+        while( recordings.firstChild ) 
+        {
+            recordings.removeChild(recordings.firstChild);
+        }
+        
+        files.forEach( function (file)
+        {
+            label = document.createElement("label");
+    
+            checkbox = document.createElement("input");
+            checkbox.setAttribute( "type", "checkbox" );
+            checkbox.setAttribute( "name", file );
+            checkbox.setAttribute( "class", "file selection" );
+            
+            link = document.createElement("a");
+            link.setAttribute( "href", "/"+file );
+            link.setAttribute( "download", file );
+            link.style.color = "#FFFFFF";
+            link.style.marginLeft = "8px";
+            link.innerHTML = file;
+            newLine = document.createElement( "br" );
+    
+            recordings.appendChild(label);
+            label.appendChild(checkbox);
+            label.appendChild(link);
+            label.appendChild(newLine);
+        });
     }
     
-    files.forEach( function (file)
-    {
-        label = document.createElement("label");
-
-        checkbox = document.createElement("input");
-        checkbox.setAttribute( "type", "checkbox" );
-        checkbox.setAttribute( "name", file );
-        checkbox.setAttribute( "class", "file selection" );
-        
-        link = document.createElement("a");
-        link.setAttribute( "href", "/"+file );
-        link.setAttribute( "download", file );
-        link.style.color = "#FFFFFF";
-        link.style.marginLeft = "8px";
-        link.innerHTML = file;
-        newLine = document.createElement( "br" );
-
-        recordings.appendChild(label);
-        label.appendChild(checkbox);
-        label.appendChild(link);
-        label.appendChild(newLine);
-    });
 }
 
 function enableOrDisableConnectButtons(disabled)
