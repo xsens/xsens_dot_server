@@ -38,7 +38,7 @@ Get more information about Xsens DOT in [Develepor Page](https://www.xsens.com/d
 ### Set up on Windows
 #### Prerequisites
 * Windows 10, Windows 7
-* Compatible Bluetooth 4.0 USB adapter or above
+* Bluetooth 4.2 USB adapter or above (backward compatible with BT4.0 with performance loss)
 * Recommend to use Chrome or Firefox 
 
 #### Install the following tools
