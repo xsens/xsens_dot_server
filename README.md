@@ -113,6 +113,27 @@ Get more information about Xsens DOT in [Develepor Page](https://www.xsens.com/d
 1. Open Xsens DOT server in browser
    * Run http://localhost:8080/ or http://127.0.0.1:8080/ you are able to use Xsens DOT Server!
 
+## Run on Docker
+
+A Dockerfile is available to run the server from. Build the image like:
+
+```cmd
+cd xsens_dot_server
+docker build . -t xsens_dot_server 
+```
+
+When running the container, Bluetooth must be made available. This is accomplished the most easily by running it with the `--net host` and `--privileged` option. This will effectively share the Bluetooth driver with the host.
+
+To keep the logged data, bind the `data` folder to a host folder.
+
+A complete example command, in interactive mode:
+
+```cmd
+docker run --net host --privileged -it --rm -v ~/Xsens_data:/root/xsens_dot_server/data xsens_dot_server
+```
+
+While it's running you can access the web interface outside the container on port 8080, since it's in host mode. Without the `--net host` option you should make the port available like `-p 8080:8080`.
+
 ## Known issues
 1. [Connection] Unable to connect sensors in Mac with Bluetooth 5.0.
 1. [Connection] Connection with firmware 1.3.0 sensors may fail in Windows. You can:
