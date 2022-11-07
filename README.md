@@ -1,5 +1,5 @@
 ## NOTE
-The new Xsens DOT PC SDK to develop laptop-based application is now ready! It is possible to download it from our Xsens DOT developer page (https://www.xsens.com/developer). The Xsens DOT Server, an example code for the BLE service specification, is then archived.
+The new Xsens DOT PC SDK to develop laptop-based applications is now ready! It is possible to download it from our Xsens DOT developer page (https://www.xsens.com/developer). The Xsens DOT Server, an example code for the BLE service specification, is then archived.
 
 ## Overview
 Xsens DOT Server is a simple web server that can scan, connect and start measurement with Xsens DOT on Windows, macOS and Raspberry Pi. The system is built using Node.js in combination with [Noble](https://github.com/abandonware/noble). 
